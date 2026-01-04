@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "972801245266",
+    "project_id": "sanpfind",
+    "storage_bucket": "sanpfind.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:972801245266:android:6c44c4385c8d7c1f13df8b",
+        "android_client_info": {
+          "package_name": "com.example.snapfind"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "972801245266-j668ajuqr1odgjv76i6mc7ubhm73jopp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.snapfind",
+            "certificate_hash": "c0a78a33ab7ac9e0acb00a9f5a3aaa9fe4d08268"
+          }
+        },
+        {
+          "client_id": "972801245266-8t8csp6rram3u6b7bpf985j9dup2rrgr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUjM7dW5WblWv0DNQx0-neojXn6XnnfbE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "972801245266-8t8csp6rram3u6b7bpf985j9dup2rrgr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "972801245266-g4u6bg5hob9rh7sbndm5jpqa1fncd4qm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.snapfind"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
