@@ -57,20 +57,6 @@ class FeedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Top picture after login
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              'assets/images/das.jpeg',
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        // Expanded so list takes remaining space
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
             stream: FirebaseService.getItemsStream(),
