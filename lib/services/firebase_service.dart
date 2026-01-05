@@ -10,20 +10,26 @@ class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   static Future<void> saveItem({
-    required File image,
+    required List<File> images,                 // <— changed
     required Map<String, dynamic> tags,
     required String location,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    // 1) Upload image
+    // 1) Upload all images and collect URLs
     final id = const Uuid().v4();
-    final ref = _storage.ref().child('items/$id.jpg');
-    await ref.putFile(image);
-    final url = await ref.getDownloadURL();
+    final List<String> imageUrls = [];
 
-    // 2) Save document
+    for (int i = 0; i < images.length; i++) {
+      final file = images[i];
+      final ref = _storage.ref().child('items/${id}_$i.jpg');
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+      imageUrls.add(url);
+    }
+
+    // 2) Save document with list of image URLs
     await _firestore.collection('items').doc(id).set({
       'id': id,
       'userId': user.uid,
@@ -31,7 +37,7 @@ class FirebaseService {
       'objectType': tags['object_type'] ?? '',
       'color': tags['color'] ?? '',
       'brand': tags['brand'] ?? '',
-      'imageUrl': url,
+      'imageUrls': imageUrls,          // <— list instead of imageUrl
       'location': location,
       'timestamp': FieldValue.serverTimestamp(),
       'status': 'found',
@@ -44,9 +50,16 @@ class FirebaseService {
         .collection('items')
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => {...d.data(), 'docId': d.id})
-            .toList());
+        .map(
+          (snap) => snap.docs
+              .map(
+                (d) => {
+                  ...d.data(),
+                  'docId': d.id,
+                },
+              )
+              .toList(),
+        );
   }
 
   static Future<List<Map<String, dynamic>>> searchItems(String query) async {

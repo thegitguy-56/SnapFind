@@ -15,7 +15,7 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  File? _image;
+  List<File> _images = [];                 // multiple images
   bool _loading = false;
   Map<String, dynamic>? _tags;
   String? _location;
@@ -25,10 +25,12 @@ class _UploadScreenState extends State<UploadScreen> {
   Future<void> _pickCamera() async {
     final xfile = await _picker.pickImage(source: ImageSource.camera);
     if (xfile == null) return;
+
     setState(() {
-      _image = File(xfile.path);
-      _tags = null;
+      _images.add(File(xfile.path));       // add new photo
+      _tags = null;                        // clear old AI tags
     });
+
     await _getLocation();
   }
 
@@ -51,7 +53,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _analyze() async {
-    if (_image == null) {
+    if (_images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pick an image first')),
       );
@@ -59,7 +61,8 @@ class _UploadScreenState extends State<UploadScreen> {
     }
     setState(() => _loading = true);
     try {
-      final tags = await GeminiService.analyzeImage(_image!);
+      // For now analyze only the first image
+      final tags = await GeminiService.analyzeImages(_images);
       setState(() {
         _tags = tags;
       });
@@ -73,7 +76,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _save() async {
-    if (_image == null || _tags == null) {
+    if (_images.isEmpty || _tags == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Analyze first before saving')),
       );
@@ -81,8 +84,9 @@ class _UploadScreenState extends State<UploadScreen> {
     }
     setState(() => _loading = true);
     try {
+      // NOTE: FirebaseService must be updated to accept List<File> images
       await FirebaseService.saveItem(
-        image: _image!,
+        images: _images,                 // pass all images
         tags: _tags!,
         location: _location ?? 'Unknown',
       );
@@ -90,7 +94,7 @@ class _UploadScreenState extends State<UploadScreen> {
         const SnackBar(content: Text('Item saved!')),
       );
       setState(() {
-        _image = null;
+        _images = [];
         _tags = null;
         _location = null;
       });
@@ -109,10 +113,26 @@ class _UploadScreenState extends State<UploadScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (_image != null)
+          if (_images.isNotEmpty)
             SizedBox(
               height: 250,
-              child: Image.file(_image!, fit: BoxFit.cover),
+              child: PageView.builder(
+                itemCount: _images.length,
+                itemBuilder: (context, index) {
+                  final file = _images[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        file,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    ),
+                  );
+                },
+              ),
             )
           else
             Container(
@@ -127,7 +147,7 @@ class _UploadScreenState extends State<UploadScreen> {
             label: const Text('Take Photo'),
           ),
           const SizedBox(height: 16),
-          if (_image != null)
+          if (_images.isNotEmpty)
             ElevatedButton.icon(
               onPressed: _loading ? null : _analyze,
               icon: const Icon(Icons.smart_toy),

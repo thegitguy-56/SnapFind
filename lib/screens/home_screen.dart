@@ -72,17 +72,40 @@ class FeedScreen extends StatelessWidget {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
+
+                  // imageUrls from Firestore
+                  final List<dynamic> urlsDynamic =
+                      item['imageUrls'] ?? <dynamic>[];
+                  final List<String> urls = urlsDynamic.cast<String>();
+
                   return Card(
                     margin: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (item['imageUrl'] != null)
-                          Image.network(
-                            item['imageUrl'],
-                            height: 200,
+                        if (urls.isNotEmpty)
+                          SizedBox(
+                            height: 220,
                             width: double.infinity,
-                            fit: BoxFit.cover,
+                            child: PageView.builder(
+                              itemCount: urls.length,
+                              itemBuilder: (context, pageIndex) {
+                                final url = urls[pageIndex];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4.0),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      url,
+                                      height: 220,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
