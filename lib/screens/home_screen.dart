@@ -42,9 +42,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SnapFind'),
+        title: const Text(
+          'SnapFind',
+          style: TextStyle(
+            color: Colors.blue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.blue),
+        foregroundColor: Colors.blue,
         actions: [
-          // History icon
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
@@ -56,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // Alerts bell with badge
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _alertsStream(),
             builder: (context, snapshot) {
@@ -119,6 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
+        backgroundColor: Colors.blue,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.white,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Feed'),
           BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Upload'),
@@ -150,6 +160,7 @@ class FeedScreen extends StatelessWidget {
                 return const Center(child: Text('No items yet'));
               }
               return ListView.builder(
+                padding: const EdgeInsets.all(8),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
@@ -175,79 +186,259 @@ class FeedScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    child: Card(
-                      margin: const EdgeInsets.all(8),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (urls.isNotEmpty)
-                            SizedBox(
-                              height: 220,
-                              width: double.infinity,
-                              child: PageView.builder(
-                                itemCount: urls.length,
-                                itemBuilder: (context, pageIndex) {
-                                  final url = urls[pageIndex];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 4.0),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        url,
-                                        height: 220,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  );
-                                },
+                            ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              child: SizedBox(
+                                height: 200,
+                                width: double.infinity,
+                                child: PageView.builder(
+                                  itemCount: urls.length,
+                                  itemBuilder: (context, pageIndex) {
+                                    final url = urls[pageIndex];
+                                    return Image.network(
+                                      url,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                ),
                               ),
                             ),
+
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  item['objectType'] ?? '',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text('Color: ${item['color'] ?? ''}'),
-                                Text('Brand: ${item['brand'] ?? ''}'),
-                                Text('Location: ${item['location'] ?? ''}'),
-                                if (note.isNotEmpty) Text('Note: $note'),
-                                Text(
-                                  'Posted by: ${item['userEmail'] ?? ''}',
-                                  style:
-                                      const TextStyle(color: Colors.blue),
-                                ),
-                                if (isFinder && status == 'found')
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton.icon(
-                                      icon: const Icon(
-                                        Icons.check_circle_outline,
-                                        color: Colors.green,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item['objectType'] ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                      label: const Text('Mark as returned'),
-                                      onPressed: () async {
-                                        final String? docId =
-                                            item['docId'] as String?;
-                                        if (docId == null) return;
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: status == 'returned'
+                                            ? Colors.green.shade50
+                                            : Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        status.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: status == 'returned'
+                                              ? Colors.green.shade800
+                                              : Colors.orange.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
 
-                                        await FirebaseFirestore.instance
-                                            .collection('items')
-                                            .doc(docId)
-                                            .update(
-                                              {'status': 'returned'},
-                                            );
-                                      },
+                                // Bold headings
+                                Row(
+                                  children: [
+                                    const Icon(Icons.color_lens,
+                                        size: 16, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: RichText(
+                                        text: TextSpan(
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black87,
+                                          ),
+                                          children: [
+                                            const TextSpan(
+                                              text: 'Color: ',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: item['color'] ?? '',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.sell,
+                                        size: 16, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: RichText(
+                                        text: TextSpan(
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black87,
+                                          ),
+                                          children: [
+                                            const TextSpan(
+                                              text: 'Brand: ',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: item['brand'] ?? '',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.location_on,
+                                        size: 16, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: RichText(
+                                        text: TextSpan(
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black87,
+                                          ),
+                                          children: [
+                                            const TextSpan(
+                                              text: 'Location: ',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: item['location'] ?? '',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                if (note.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  RichText(
+                                    text: TextSpan(
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.black87,
+                                      ),
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Note: ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: note,
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                ],
+
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Posted by: ${item['userEmail'] ?? ''}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isFinder && status == 'found')
+                                      // Styled button
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.green.shade50,
+                                          foregroundColor:
+                                              Colors.green.shade800,
+                                          side: BorderSide(
+                                            color: Colors.green.shade400,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.check_circle_outline,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Mark as returned'),
+                                        onPressed: () async {
+                                          final String? docId =
+                                              item['docId'] as String?;
+                                          if (docId == null) return;
+
+                                          await FirebaseFirestore.instance
+                                              .collection('items')
+                                              .doc(docId)
+                                              .update(
+                                                {'status': 'returned'},
+                                              );
+                                        },
+                                      ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
