@@ -144,6 +144,7 @@ class _UploadScreenState extends State<UploadScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Camera / image box (rounded, neat)
           if (_images.isNotEmpty)
             SizedBox(
               height: 250,
@@ -154,7 +155,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
                       child: Image.file(
                         file,
                         fit: BoxFit.cover,
@@ -168,25 +169,90 @@ class _UploadScreenState extends State<UploadScreen> {
           else
             Container(
               height: 250,
-              color: Colors.grey[300],
-              child: const Center(child: Text('No image selected')),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.camera_alt_outlined,
+                    size: 48,
+                    color: Colors.blue.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No image selected',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap "Take Photo" to capture an item',
+                    style: TextStyle(
+                      color: Colors.blue.shade400,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
+
           const SizedBox(height: 16),
+
+          // Take Photo button (rounded, light black transparent)
           ElevatedButton.icon(
             onPressed: _pickCamera,
             icon: const Icon(Icons.camera_alt),
             label: const Text('Take Photo'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black12,      // light black, semi-transparent
+              foregroundColor: Colors.black87,      // icon + text
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: Colors.black26),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+
           const SizedBox(height: 16),
+
           if (_images.isNotEmpty)
             ElevatedButton.icon(
               onPressed: _loading ? null : _analyze,
               icon: const Icon(Icons.smart_toy),
               label: const Text('Analyze with AI'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple.shade50,
+                foregroundColor: Colors.deepPurple.shade800,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
             ),
+
           const SizedBox(height: 16),
+
           if (_tags != null)
             Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 2,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -227,12 +293,31 @@ class _UploadScreenState extends State<UploadScreen> {
                 ),
               ),
             ),
+
           const SizedBox(height: 16),
+
           if (_tags != null)
             ElevatedButton(
               onPressed: _loading ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                ),
+              ),
               child: _loading
-                  ? const CircularProgressIndicator()
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Save to database'),
             ),
         ],

@@ -3,7 +3,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
   // TODO: REPLACE this with your real API key from aistudio.google.com
-  static const String _apiKey = 'Enter Your API Key Here';
+  static const String _apiKey = 'Enter_Your_Gemini_API_Key_Here';
 
   static Future<Map<String, dynamic>> analyzeImages(List<File> imageFiles) async {
     final model = GenerativeModel(
