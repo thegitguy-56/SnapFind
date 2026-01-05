@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
 import 'upload_screen.dart';
 import 'search_screen.dart';
 import 'item_detail_screen.dart';
+import 'alerts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,12 +25,75 @@ class _HomeScreenState extends State<HomeScreen> {
     SearchScreen(),
   ];
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> _alertsStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Stream.empty();
+    }
+    return FirebaseFirestore.instance
+        .collection('alerts')
+        .where('finderId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('SnapFind'),
         actions: [
+          // Alerts bell with badge
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _alertsStream(),
+            builder: (context, snapshot) {
+              int count = 0;
+              if (snapshot.hasData) {
+                count = snapshot.data!.docs.length;
+              }
+
+              return IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_none),
+                    if (count > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            count.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AlertsScreen(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
