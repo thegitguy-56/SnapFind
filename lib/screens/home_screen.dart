@@ -8,6 +8,7 @@ import 'upload_screen.dart';
 import 'search_screen.dart';
 import 'item_detail_screen.dart';
 import 'alerts_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +44,18 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('SnapFind'),
         actions: [
+          // History icon
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HistoryScreen(),
+                ),
+              );
+            },
+          ),
           // Alerts bell with badge
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _alertsStream(),
@@ -99,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await AuthService.signOut();
             },
-          )
+          ),
         ],
       ),
       body: _pages[_index],
@@ -121,6 +134,8 @@ class FeedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     return Column(
       children: [
         Expanded(
@@ -139,12 +154,17 @@ class FeedScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = items[index];
 
-                  // imageUrls from Firestore
                   final List<dynamic> urlsDynamic =
                       item['imageUrls'] ?? <dynamic>[];
                   final List<String> urls = urlsDynamic.cast<String>();
 
                   final note = (item['note'] ?? '').toString();
+
+                  final String? finderId = item['userId'] as String?;
+                  final String status =
+                      (item['status'] as String?) ?? 'found';
+                  final bool isFinder =
+                      currentUser != null && finderId == currentUser.uid;
 
                   return GestureDetector(
                     onTap: () {
@@ -205,6 +225,29 @@ class FeedScreen extends StatelessWidget {
                                   style:
                                       const TextStyle(color: Colors.blue),
                                 ),
+                                if (isFinder && status == 'found')
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                        color: Colors.green,
+                                      ),
+                                      label: const Text('Mark as returned'),
+                                      onPressed: () async {
+                                        final String? docId =
+                                            item['docId'] as String?;
+                                        if (docId == null) return;
+
+                                        await FirebaseFirestore.instance
+                                            .collection('items')
+                                            .doc(docId)
+                                            .update(
+                                              {'status': 'returned'},
+                                            );
+                                      },
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

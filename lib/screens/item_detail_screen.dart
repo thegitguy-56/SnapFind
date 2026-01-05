@@ -145,6 +145,9 @@ class ItemDetailScreen extends StatelessWidget {
     final List<dynamic> urlsDynamic = item['imageUrls'] ?? <dynamic>[];
     final List<String> urls = urlsDynamic.cast<String>();
     final note = (item['note'] ?? '').toString();
+    final String status = (item['status'] as String?) ?? 'found';
+
+    final bool isReturned = status == 'returned';
 
     return Scaffold(
       appBar: AppBar(
@@ -159,21 +162,45 @@ class ItemDetailScreen extends StatelessWidget {
                   SizedBox(
                     height: 260,
                     width: double.infinity,
-                    child: PageView.builder(
-                      itemCount: urls.length,
-                      itemBuilder: (context, index) {
-                        final url = urls[index];
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              url,
-                              fit: BoxFit.cover,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: urls.length,
+                          itemBuilder: (context, index) {
+                            final url = urls[index];
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        if (isReturned)
+                          Container(
+                            height: 260,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'ITEM RETURNED',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                              ),
                             ),
                           ),
-                        );
-                      },
+                      ],
                     ),
                   ),
                 Expanded(
@@ -182,7 +209,6 @@ class ItemDetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Main heading bigger
                         Text(
                           item['objectType'] ?? '',
                           style: const TextStyle(
@@ -191,8 +217,6 @@ class ItemDetailScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Bold labels for fields
                         RichText(
                           text: TextSpan(
                             style: const TextStyle(
@@ -274,6 +298,15 @@ class ItemDetailScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
+                        if (isReturned)
+                          const Text(
+                            'This item has been returned to its owner.',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -282,7 +315,7 @@ class ItemDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // Buttons section – visually higher
+          // Buttons section – disabled when returned
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
@@ -291,14 +324,16 @@ class ItemDetailScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent,
+                      backgroundColor:
+                          isReturned ? Colors.grey : Colors.orangeAccent,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () => _onAlertPressed(context),
+                    onPressed:
+                        isReturned ? null : () => _onAlertPressed(context),
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
@@ -311,14 +346,16 @@ class ItemDetailScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
+                      backgroundColor:
+                          isReturned ? Colors.grey : Colors.teal,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () => _onChatPressed(context),
+                    onPressed:
+                        isReturned ? null : () => _onChatPressed(context),
                     child: const Text(
                       "Chat with finder",
                       textAlign: TextAlign.center,

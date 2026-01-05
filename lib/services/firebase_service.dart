@@ -32,23 +32,25 @@ class FirebaseService {
     // 2) Save document with list of image URLs + note
     await _firestore.collection('items').doc(id).set({
       'id': id,
-      'userId': user.uid,
+      'userId': user.uid,          // finder / uploader
       'userEmail': user.email,
       'objectType': tags['object_type'] ?? '',
       'color': tags['color'] ?? '',
       'brand': tags['brand'] ?? '',
-      'note': tags['note'] ?? '',          // <— note added
+      'note': tags['note'] ?? '',
       'imageUrls': imageUrls,
       'location': location,
       'timestamp': FieldValue.serverTimestamp(),
-      'status': 'found',
+      'status': 'found',           // not returned yet
       'matched': false,
     });
   }
 
+  // MAIN FEED: show only items that are still found (not returned)
   static Stream<List<Map<String, dynamic>>> getItemsStream() {
     return _firestore
         .collection('items')
+        //.where('status', isEqualTo: 'found')
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map(
@@ -56,9 +58,10 @@ class FirebaseService {
               .map(
                 (d) => {
                   ...d.data(),
-                  'docId': d.id,
+                  'docId': d.id, // used when updating status
                 },
               )
+              .where((item) => item['status'] == 'found')
               .toList(),
         );
   }
