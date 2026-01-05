@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
 import 'upload_screen.dart';
 import 'search_screen.dart';
+import 'item_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,60 +81,70 @@ class FeedScreen extends StatelessWidget {
 
                   final note = (item['note'] ?? '').toString();
 
-                  return Card(
-                    margin: const EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (urls.isNotEmpty)
-                          SizedBox(
-                            height: 220,
-                            width: double.infinity,
-                            child: PageView.builder(
-                              itemCount: urls.length,
-                              itemBuilder: (context, pageIndex) {
-                                final url = urls[pageIndex];
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4.0),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      url,
-                                      height: 220,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ItemDetailScreen(item: item),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      margin: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (urls.isNotEmpty)
+                            SizedBox(
+                              height: 220,
+                              width: double.infinity,
+                              child: PageView.builder(
+                                itemCount: urls.length,
+                                itemBuilder: (context, pageIndex) {
+                                  final url = urls[pageIndex];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        url,
+                                        height: 220,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
+                                  );
+                                },
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['objectType'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                );
-                              },
+                                ),
+                                Text('Color: ${item['color'] ?? ''}'),
+                                Text('Brand: ${item['brand'] ?? ''}'),
+                                Text('Location: ${item['location'] ?? ''}'),
+                                if (note.isNotEmpty) Text('Note: $note'),
+                                Text(
+                                  'Posted by: ${item['userEmail'] ?? ''}',
+                                  style:
+                                      const TextStyle(color: Colors.blue),
+                                ),
+                              ],
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['objectType'] ?? '',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text('Color: ${item['color'] ?? ''}'),
-                              Text('Brand: ${item['brand'] ?? ''}'),
-                              Text('Location: ${item['location'] ?? ''}'),
-                              if (note.isNotEmpty)
-                                Text('Note: $note'),
-                              Text(
-                                'Posted by: ${item['userEmail'] ?? ''}',
-                                style: const TextStyle(color: Colors.blue),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
