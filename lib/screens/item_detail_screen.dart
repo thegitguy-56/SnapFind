@@ -1,22 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'chat_screen.dart';
 
 class ItemDetailScreen extends StatelessWidget {
   final Map<String, dynamic> item;
 
   const ItemDetailScreen({super.key, required this.item});
 
-  void _onAlertPressed(BuildContext context) {
-    // TODO: implement Firestore alert logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Alert button pressed")),
-    );
+  Future<void> _onAlertPressed(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to alert the finder")),
+      );
+      return;
+    }
+
+    final String seekerId = user.uid;
+    final String? finderId = item['userId']?.toString();
+    final String? itemId =
+        item['id']?.toString() ?? item['docId']?.toString();
+
+    if (finderId == null || itemId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Missing item information")),
+      );
+      return;
+    }
+
+    // If you are the finder, no alert needed
+    if (finderId == seekerId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You posted this item")),
+      );
+      return;
+    }
+
+    final alertsRef = FirebaseFirestore.instance.collection('alerts');
+
+    try {
+      // Check if an alert already exists for this item + seeker
+      final existing = await alertsRef
+          .where('itemId', isEqualTo: itemId)
+          .where('seekerId', isEqualTo: seekerId)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You already alerted the finder")),
+        );
+        return;
+      }
+
+      await alertsRef.add({
+        'itemId': itemId,
+        'finderId': finderId,
+        'seekerId': seekerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Alert sent to finder")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to send alert: $e")),
+      );
+    }
   }
 
-  void _onChatPressed(BuildContext context) {
-    // TODO: implement Firestore chat logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Chat button pressed")),
-    );
+  Future<void> _onChatPressed(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to chat with the finder")),
+      );
+      return;
+    }
+
+    final String seekerId = user.uid;
+    final String? finderId = item['userId']?.toString();
+    final String? itemId =
+        item['id']?.toString() ?? item['docId']?.toString();
+
+    if (finderId == null || itemId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Missing item information")),
+      );
+      return;
+    }
+
+    final chatsRef = FirebaseFirestore.instance.collection('chats');
+    String chatId;
+
+    try {
+      // 1) Check if a chat already exists between this seeker and finder for this item
+      final existing = await chatsRef
+          .where('itemId', isEqualTo: itemId)
+          .where('finderId', isEqualTo: finderId)
+          .where('seekerId', isEqualTo: seekerId)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        chatId = existing.docs.first.id;
+      } else {
+        // 2) Create a new chat document
+        final newChatRef = await chatsRef.add({
+          'itemId': itemId,
+          'finderId': finderId,
+          'seekerId': seekerId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageAt': FieldValue.serverTimestamp(),
+        });
+        chatId = newChatRef.id;
+      }
+
+      // 3) Navigate to ChatScreen
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              chatId: chatId,
+              item: item,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to open chat: $e")),
+      );
+    }
   }
 
   @override
@@ -152,6 +273,7 @@ class ItemDetailScreen extends StatelessWidget {
                             fontSize: 14,
                           ),
                         ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -159,11 +281,11 @@ class ItemDetailScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 4),
+
+          // Buttons section – visually higher
           Container(
             color: Colors.white,
-            padding:
-                const EdgeInsets.fromLTRB(12,16,12,24),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
             child: Row(
               children: [
                 Expanded(
