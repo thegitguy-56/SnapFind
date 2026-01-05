@@ -78,6 +78,8 @@ class FeedScreen extends StatelessWidget {
                       item['imageUrls'] ?? <dynamic>[];
                   final List<String> urls = urlsDynamic.cast<String>();
 
+                  final note = (item['note'] ?? '').toString();
+
                   return Card(
                     margin: const EdgeInsets.all(8),
                     child: Column(
@@ -122,6 +124,8 @@ class FeedScreen extends StatelessWidget {
                               Text('Color: ${item['color'] ?? ''}'),
                               Text('Brand: ${item['brand'] ?? ''}'),
                               Text('Location: ${item['location'] ?? ''}'),
+                              if (note.isNotEmpty)
+                                Text('Note: $note'),
                               Text(
                                 'Posted by: ${item['userEmail'] ?? ''}',
                                 style: const TextStyle(color: Colors.blue),

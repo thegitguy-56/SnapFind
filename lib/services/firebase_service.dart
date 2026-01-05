@@ -10,7 +10,7 @@ class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   static Future<void> saveItem({
-    required List<File> images,                 // <— changed
+    required List<File> images,
     required Map<String, dynamic> tags,
     required String location,
   }) async {
@@ -29,7 +29,7 @@ class FirebaseService {
       imageUrls.add(url);
     }
 
-    // 2) Save document with list of image URLs
+    // 2) Save document with list of image URLs + note
     await _firestore.collection('items').doc(id).set({
       'id': id,
       'userId': user.uid,
@@ -37,7 +37,8 @@ class FirebaseService {
       'objectType': tags['object_type'] ?? '',
       'color': tags['color'] ?? '',
       'brand': tags['brand'] ?? '',
-      'imageUrls': imageUrls,          // <— list instead of imageUrl
+      'note': tags['note'] ?? '',          // <— note added
+      'imageUrls': imageUrls,
       'location': location,
       'timestamp': FieldValue.serverTimestamp(),
       'status': 'found',

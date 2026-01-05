@@ -15,20 +15,39 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  List<File> _images = [];                 // multiple images
+  List<File> _images = []; // multiple images
   bool _loading = false;
   Map<String, dynamic>? _tags;
   String? _location;
 
   final ImagePicker _picker = ImagePicker();
 
+  // Controllers for manual edit
+  final TextEditingController _objectController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _brandController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _objectController.dispose();
+    _colorController.dispose();
+    _brandController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickCamera() async {
     final xfile = await _picker.pickImage(source: ImageSource.camera);
     if (xfile == null) return;
 
     setState(() {
-      _images.add(File(xfile.path));       // add new photo
-      _tags = null;                        // clear old AI tags
+      _images.add(File(xfile.path)); // add new photo
+      _tags = null; // clear old AI tags
+      _objectController.clear();
+      _colorController.clear();
+      _brandController.clear();
+      _noteController.clear();
     });
 
     await _getLocation();
@@ -61,10 +80,12 @@ class _UploadScreenState extends State<UploadScreen> {
     }
     setState(() => _loading = true);
     try {
-      // For now analyze only the first image
       final tags = await GeminiService.analyzeImages(_images);
       setState(() {
         _tags = tags;
+        _objectController.text = tags['object_type'] ?? '';
+        _colorController.text = tags['color'] ?? '';
+        _brandController.text = tags['brand'] ?? '';
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,10 +105,16 @@ class _UploadScreenState extends State<UploadScreen> {
     }
     setState(() => _loading = true);
     try {
-      // NOTE: FirebaseService must be updated to accept List<File> images
+      final manualTags = {
+        'object_type': _objectController.text.trim(),
+        'color': _colorController.text.trim(),
+        'brand': _brandController.text.trim(),
+        'note': _noteController.text.trim(),
+      };
+
       await FirebaseService.saveItem(
-        images: _images,                 // pass all images
-        tags: _tags!,
+        images: _images, // pass all images
+        tags: manualTags,
         location: _location ?? 'Unknown',
       );
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,6 +124,10 @@ class _UploadScreenState extends State<UploadScreen> {
         _images = [];
         _tags = null;
         _location = null;
+        _objectController.clear();
+        _colorController.clear();
+        _brandController.clear();
+        _noteController.clear();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,11 +192,37 @@ class _UploadScreenState extends State<UploadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Object: ${_tags!['object_type'] ?? ''}'),
-                    Text('Color: ${_tags!['color'] ?? ''}'),
-                    Text('Brand: ${_tags!['brand'] ?? ''}'),
+                    TextField(
+                      controller: _objectController,
+                      decoration: const InputDecoration(
+                        labelText: 'Object type',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _colorController,
+                      decoration: const InputDecoration(
+                        labelText: 'Color',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _brandController,
+                      decoration: const InputDecoration(
+                        labelText: 'Brand (optional)',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Additional notes (optional)',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     if (_location != null)
-                      Text('Location: $_location'),
+                      Text('Location (from GPS): $_location'),
                   ],
                 ),
               ),
