@@ -3,37 +3,41 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
   // TODO: REPLACE this with your real API key from aistudio.google.com
-  static const String _apiKey = 'Enter API Key';
+  static const String _apiKey = 'Enter Your API Key Here';
 
-  static Future<Map<String, dynamic>> analyzeImage(File imageFile) async {
+  static Future<Map<String, dynamic>> analyzeImages(List<File> imageFiles) async {
     final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: _apiKey,
     );
 
-    final bytes = await imageFile.readAsBytes();
+    // Build parts: prompt + all images
+    final parts = <Part>[];
 
     const prompt = '''
-Analyze this image of a found item and return ONLY a JSON object like:
+Analyze these photos of the same found item (front, back, other angles).
+Use ALL images together and respond ONLY with valid JSON:
 {
   "object_type": "water bottle",
   "color": "blue",
   "brand": "Milton"
 }
+If you are not sure about a field, return an empty string for that field.
 ''';
 
+    parts.add(TextPart(prompt));
+
+    for (final file in imageFiles) {
+      final bytes = await file.readAsBytes();
+      parts.add(DataPart('image/jpeg', bytes));
+    }
+
     final response = await model.generateContent([
-      Content.multi([
-        TextPart(prompt),
-        DataPart('image/jpeg', bytes),
-      ]),
+      Content.multi(parts),
     ]);
 
     final text = response.text ?? '{}';
     print('Gemini raw response: $text');
-
-    // Very simple parsing: try to extract values with regex
-    final result = <String, dynamic>{};
 
     String extract(String key) {
       final reg = RegExp('"$key"\\s*:\\s*"([^"]*)"');
@@ -41,10 +45,10 @@ Analyze this image of a found item and return ONLY a JSON object like:
       return match?.group(1) ?? '';
     }
 
-    result['object_type'] = extract('object_type');
-    result['color'] = extract('color');
-    result['brand'] = extract('brand');
-
-    return result;
+    return {
+      'object_type': extract('object_type'),
+      'color': extract('color'),
+      'brand': extract('brand'),
+    };
   }
 }
