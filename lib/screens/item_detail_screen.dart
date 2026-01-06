@@ -20,21 +20,20 @@ class ItemDetailScreen extends StatelessWidget {
 
     final String seekerId = user.uid;
     final String? finderId = item['userId']?.toString();
-    final String? itemId =
-        item['id']?.toString() ?? item['docId']?.toString();
+    final String? itemId = item['id']?.toString() ?? item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
     // If you are the finder, no alert needed
     if (finderId == seekerId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You posted this item")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("You posted this item")));
       return;
     }
 
@@ -63,13 +62,13 @@ class ItemDetailScreen extends StatelessWidget {
         'status': 'pending',
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Alert sent to finder")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Alert sent to finder")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to send alert: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to send alert: $e")));
     }
   }
 
@@ -84,13 +83,12 @@ class ItemDetailScreen extends StatelessWidget {
 
     final String seekerId = user.uid;
     final String? finderId = item['userId']?.toString();
-    final String? itemId =
-        item['id']?.toString() ?? item['docId']?.toString();
+    final String? itemId = item['id']?.toString() ?? item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
@@ -126,17 +124,14 @@ class ItemDetailScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              chatId: chatId,
-              item: item,
-            ),
+            builder: (_) => ChatScreen(chatId: chatId, item: item),
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to open chat: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to open chat: $e")));
     }
   }
 
@@ -144,15 +139,25 @@ class ItemDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<dynamic> urlsDynamic = item['imageUrls'] ?? <dynamic>[];
     final List<String> urls = urlsDynamic.cast<String>();
-    final note = (item['note'] ?? '').toString();
+    final note = (item['note'] ?? item['notes'] ?? '').toString();
     final String status = (item['status'] as String?) ?? 'found';
-
     final bool isReturned = status == 'returned';
+    final bool isFound = status == 'found';
+
+    // Get fields based on item type
+    final String displayTitle =
+        item['objectType'] ?? item['itemName'] ?? 'Item';
+    final String color = isFound ? (item['color'] ?? '') : '';
+    final String brand = isFound ? (item['brand'] ?? '') : '';
+    final String location = isFound
+        ? (item['location'] ?? '')
+        : (item['lastKnownLocation'] ?? '');
+    final String postedBy = isFound
+        ? (item['userEmail'] ?? '')
+        : (item['reportedBy'] ?? '');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Item details'),
-      ),
+      appBar: AppBar(title: const Text('Item details')),
       body: Column(
         children: [
           Expanded(
@@ -172,10 +177,7 @@ class ItemDetailScreen extends StatelessWidget {
                               padding: const EdgeInsets.all(8.0),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  url,
-                                  fit: BoxFit.cover,
-                                ),
+                                child: Image.network(url, fit: BoxFit.cover),
                               ),
                             );
                           },
@@ -210,66 +212,85 @@ class ItemDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['objectType'] ?? '',
+                          displayTitle,
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
+                        if (isFound && color.isNotEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const TextSpan(
-                                text: 'Color: ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Color: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    TextSpan(text: color),
+                                  ],
+                                ),
                               ),
-                              TextSpan(
-                                text: (item['color'] ?? '').toString(),
-                              ),
+                              const SizedBox(height: 4),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
+                        if (isFound && brand.isNotEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const TextSpan(
-                                text: 'Brand: ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Brand: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    TextSpan(text: brand),
+                                  ],
+                                ),
                               ),
-                              TextSpan(
-                                text: (item['brand'] ?? '').toString(),
-                              ),
+                              const SizedBox(height: 4),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
+                        if (location.isNotEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const TextSpan(
-                                text: 'Location: ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Location: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    TextSpan(text: location),
+                                  ],
+                                ),
                               ),
-                              TextSpan(
-                                text: (item['location'] ?? '').toString(),
-                              ),
+                              const SizedBox(height: 4),
                             ],
                           ),
-                        ),
                         if (note.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           RichText(
@@ -281,8 +302,7 @@ class ItemDetailScreen extends StatelessWidget {
                               children: [
                                 const TextSpan(
                                   text: 'Note: ',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 TextSpan(text: note),
                               ],
@@ -290,13 +310,14 @@ class ItemDetailScreen extends StatelessWidget {
                           ),
                         ],
                         const SizedBox(height: 16),
-                        Text(
-                          'Posted by: ${item['userEmail'] ?? ''}',
-                          style: const TextStyle(
-                            color: Colors.blueGrey,
-                            fontSize: 14,
+                        if (postedBy.isNotEmpty)
+                          Text(
+                            'Posted by: $postedBy',
+                            style: const TextStyle(
+                              color: Colors.blueGrey,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 24),
                         if (isReturned)
                           const Text(
@@ -316,55 +337,64 @@ class ItemDetailScreen extends StatelessWidget {
           ),
 
           // Buttons section – disabled when returned
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isReturned ? Colors.grey : Colors.orangeAccent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+          SafeArea(
+            top: false,
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isReturned
+                            ? Colors.grey
+                            : Colors.orangeAccent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: isReturned
+                          ? null
+                          : () => _onAlertPressed(context),
+                      child: Text(
+                        isFound ? "I'm looking for this" : "I have found this",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    onPressed:
-                        isReturned ? null : () => _onAlertPressed(context),
-                    child: const Text(
-                      "I'm looking for this",
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isReturned ? Colors.grey : Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isReturned ? Colors.grey : Colors.teal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: isReturned
+                          ? null
+                          : () => _onChatPressed(context),
+                      child: Text(
+                        isFound ? "Chat with finder" : "Chat with owner",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    onPressed:
-                        isReturned ? null : () => _onChatPressed(context),
-                    child: const Text(
-                      "Chat with finder",
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
