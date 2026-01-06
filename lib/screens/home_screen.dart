@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
@@ -166,8 +167,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class FeedScreen extends StatelessWidget {
+class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
+
+  @override
+  State<FeedScreen> createState() => _FeedScreenState();
+}
+
+class _FeedScreenState extends State<FeedScreen> {
+  Future<void> _refreshFeed() async {
+    // Force a fetch; the stream will update listeners
+    await FirebaseFirestore.instance
+        .collection('items')
+        .orderBy('timestamp', descending: true)
+        .get();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,20 +198,30 @@ class FeedScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               final items = snapshot.data ?? [];
-              if (items.isEmpty) {
-                return const Center(child: Text('No items yet'));
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
 
-                  final List<dynamic> urlsDynamic =
-                      item['imageUrls'] ?? <dynamic>[];
-                  final List<String> urls = urlsDynamic.cast<String>();
+              return RefreshIndicator(
+                onRefresh: _refreshFeed,
+                color: Colors.blue,
+                child: items.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(child: Text('No items yet')),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(8),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final item = items[index];
 
-                  final note = (item['note'] ?? '').toString();
+                          final List<dynamic> urlsDynamic =
+                              item['imageUrls'] ?? <dynamic>[];
+                          final List<String> urls = urlsDynamic.cast<String>();
+
+                          final note = (item['note'] ?? '').toString();
 
                   final String? finderId = item['userId'] as String?;
                   final String status = (item['status'] as String?) ?? 'found';
@@ -242,11 +267,25 @@ class FeedScreen extends StatelessWidget {
                                   itemCount: urls.length,
                                   itemBuilder: (context, pageIndex) {
                                     final url = urls[pageIndex];
-                                    return Image.network(
-                                      url,
+                                    return CachedNetworkImage(
+                                      imageUrl: url,
                                       height: 200,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
+                                      placeholder: (context, _) => Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Center(
+                                          child: SizedBox(
+                                            width: 28,
+                                            height: 28,
+                                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                                          ),
+                                        ),
+                                      ),
+                                      errorWidget: (context, _, __) => Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                                      ),
                                     );
                                   },
                                 ),
@@ -474,11 +513,12 @@ class FeedScreen extends StatelessWidget {
                     ),
                   );
                 },
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 }
