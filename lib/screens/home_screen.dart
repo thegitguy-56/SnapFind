@@ -231,9 +231,9 @@ class _FeedScreenState extends State<FeedScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
             child: Row(
               children: [
                 _buildTab('Found', 'found'),
