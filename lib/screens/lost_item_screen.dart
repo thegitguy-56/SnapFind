@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
 
 class LostItemScreen extends StatefulWidget {
   const LostItemScreen({super.key});
@@ -13,6 +17,7 @@ class LostItemScreen extends StatefulWidget {
 class _LostItemScreenState extends State<LostItemScreen> {
   File? _selectedImage;
   DateTime? _lostDate;
+  bool _isLoading = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -82,25 +87,80 @@ class _LostItemScreenState extends State<LostItemScreen> {
         _lostDate != null;
   }
 
-  void _submitReport() {
+  Future<void> _submitReport() async {
     if (!_isFormValid()) {
       return;
     }
 
-    // Placeholder for form submission
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lost item reported successfully!')),
-    );
+    setState(() => _isLoading = true);
 
-    // Reset form
-    setState(() {
-      _itemNameController.clear();
-      _locationController.clear();
-      _notesController.clear();
-      _selectedImage = null;
-      _lostDate = null;
-      _selectedCategory = null;
-    });
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      final itemId = const Uuid().v4();
+      String? imageUrl;
+
+      // Upload image if selected
+      if (_selectedImage != null) {
+        final ref = FirebaseStorage.instance.ref().child(
+          'lost_items/${itemId}.jpg',
+        );
+        await ref.putFile(_selectedImage!);
+        imageUrl = await ref.getDownloadURL();
+      }
+
+      // Prepare data
+      final data = {
+        'id': itemId,
+        'itemName': _itemNameController.text.trim(),
+        'category': _selectedCategory,
+        'lastKnownLocation': _locationController.text.trim(),
+        'lostDate': Timestamp.fromDate(_lostDate!),
+        'notes': _notesController.text.trim(),
+        'status': 'lost',
+        'reportedBy': user.email,
+        'userId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      if (imageUrl != null) {
+        data['imageUrl'] = imageUrl;
+      }
+
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('items')
+          .doc(itemId)
+          .set(data);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lost item reported successfully!')),
+        );
+
+        // Reset form
+        setState(() {
+          _itemNameController.clear();
+          _locationController.clear();
+          _notesController.clear();
+          _selectedImage = null;
+          _lostDate = null;
+          _selectedCategory = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -297,7 +357,7 @@ class _LostItemScreenState extends State<LostItemScreen> {
 
           // Submit button
           ElevatedButton(
-            onPressed: _isFormValid() ? _submitReport : null,
+            onPressed: (_isFormValid() && !_isLoading) ? _submitReport : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange.shade600,
               foregroundColor: Colors.white,
@@ -308,7 +368,16 @@ class _LostItemScreenState extends State<LostItemScreen> {
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: const Text('Report Lost Item'),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Report Lost Item'),
           ),
 
           const SizedBox(height: 16),
