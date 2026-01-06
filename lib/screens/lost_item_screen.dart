@@ -52,6 +52,12 @@ class _LostItemScreenState extends State<LostItemScreen> {
     });
   }
 
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+    });
+  }
+
   Future<void> _selectDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -174,6 +180,33 @@ class _LostItemScreenState extends State<LostItemScreen> {
               ),
             ),
           ),
+
+          if (_selectedImage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: ElevatedButton.icon(
+                onPressed: _removeImage,
+                icon: const Icon(Icons.close),
+                label: const Text('Remove Image'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade50,
+                  foregroundColor: Colors.red.shade700,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(color: Colors.red.shade200),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
 
           const SizedBox(height: 16),
 
