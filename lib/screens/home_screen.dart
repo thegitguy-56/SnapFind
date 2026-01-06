@@ -23,16 +23,95 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _pages = const [FeedScreen(), UploadScreen(), SearchScreen()];
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _alertsStream() {
+  Stream<int> _bellBadgeStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Stream.empty();
     }
-    return FirebaseFirestore.instance
+
+    final alertsStream = FirebaseFirestore.instance
         .collection('alerts')
         .where('finderId', isEqualTo: user.uid)
         .where('status', isEqualTo: 'pending')
         .snapshots();
+
+    final finderChatsStream = FirebaseFirestore.instance
+        .collection('chats')
+        .where('finderId', isEqualTo: user.uid)
+        .snapshots();
+
+    final seekerChatsStream = FirebaseFirestore.instance
+        .collection('chats')
+        .where('seekerId', isEqualTo: user.uid)
+        .snapshots();
+
+    return Stream<int>.multi((controller) {
+      int alertCount = 0;
+      int finderUnread = 0;
+      int seekerUnread = 0;
+
+      void emit() => controller.add(alertCount + finderUnread + seekerUnread);
+
+      final alertSub = alertsStream.listen(
+        (snapshot) {
+          alertCount = snapshot.size;
+          emit();
+        },
+        onError: controller.addError,
+      );
+
+      final finderSub = finderChatsStream.listen(
+        (snapshot) {
+          finderUnread = _countUnreadChats(snapshot, 'finder');
+          emit();
+        },
+        onError: controller.addError,
+      );
+
+      final seekerSub = seekerChatsStream.listen(
+        (snapshot) {
+          seekerUnread = _countUnreadChats(snapshot, 'seeker');
+          emit();
+        },
+        onError: controller.addError,
+      );
+
+      controller.onCancel = () {
+        alertSub.cancel();
+        finderSub.cancel();
+        seekerSub.cancel();
+      };
+    });
+  }
+
+  int _countUnreadChats(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+    String myRole,
+  ) {
+    int count = 0;
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final String lastSenderRole = (data['lastSenderRole'] ?? '').toString();
+      final Timestamp? lastMessageAt = data['lastMessageAt'] as Timestamp?;
+      if (lastMessageAt == null) continue;
+
+      final Timestamp? lastReadAt = data[myRole == 'finder'
+              ? 'finderLastReadAt'
+              : 'seekerLastReadAt']
+          as Timestamp?;
+
+      final bool fromOtherSide =
+          lastSenderRole.isEmpty || lastSenderRole != myRole;
+      final bool unreadByTime = lastReadAt == null ||
+          lastMessageAt.toDate().isAfter(lastReadAt.toDate());
+
+      if (fromOtherSide && unreadByTime) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   @override
@@ -46,13 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: const IconThemeData(color: Colors.blue),
         foregroundColor: Colors.blue,
         actions: [
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _alertsStream(),
+          StreamBuilder<int>(
+            stream: _bellBadgeStream(),
             builder: (context, snapshot) {
-              int count = 0;
-              if (snapshot.hasData) {
-                count = snapshot.data!.docs.length;
-              }
+              final int count = snapshot.data ?? 0;
 
               return IconButton(
                 icon: Stack(

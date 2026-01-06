@@ -42,9 +42,19 @@ class AlertsScreen extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
+          return RefreshIndicator(
+            color: Colors.blue,
+            onRefresh: () async {
+              await FirebaseFirestore.instance
+                  .collection('alerts')
+                  .where('finderId', isEqualTo: user.uid)
+                  .orderBy('createdAt', descending: true)
+                  .get();
+            },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: docs.length,
+              itemBuilder: (context, index) {
               final alertDoc = docs[index];
               final alertData = alertDoc.data();
               final alertId = alertDoc.id;
@@ -52,86 +62,149 @@ class AlertsScreen extends StatelessWidget {
               final seekerId = (alertData['seekerId'] ?? '').toString();
               final status = (alertData['status'] ?? '').toString();
 
-              return ListTile(
-                leading: Icon(
-                  status == 'pending'
-                      ? Icons.notifications_active
-                      : Icons.notifications_none,
-                  color: status == 'pending' ? Colors.orange : Colors.grey,
-                ),
-                title: Text('Alert for item: $itemId'),
-                subtitle: Text('From user: $seekerId'),
-                onTap: () async {
-                  // Mark as seen
-                  await FirebaseFirestore.instance
-                      .collection('alerts')
-                      .doc(alertId)
-                      .update({'status': 'seen'});
+              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('items')
+                    .doc(itemId)
+                    .get(),
+                builder: (context, itemSnap) {
+                  final docSnap = itemSnap.data;
+                  final itemData = docSnap?.data() ?? <String, dynamic>{};
+                  final String itemTitle =
+                      ((itemData['title'] ?? itemData['objectType']) ?? '')
+                          .toString()
+                          .trim();
+                    final List<dynamic> urlsDynamic =
+                      (itemData['imageUrls'] as List<dynamic>?) ?? [];
+                    final String? thumbUrl = urlsDynamic.isNotEmpty
+                      ? urlsDynamic.first.toString()
+                      : null;
 
-                  // Fetch item data
-                  final itemSnap = await FirebaseFirestore.instance
-                      .collection('items')
-                      .doc(itemId)
-                      .get();
-
-                  if (!itemSnap.exists) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Item not found'),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    child: Card(
+                      elevation: 2,
+                      color: Colors.lightBlue.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                    return;
-                  }
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        leading: Icon(
+                          status == 'pending'
+                              ? Icons.notifications_active
+                              : Icons.notifications_none,
+                          color: status == 'pending'
+                              ? Colors.orange
+                              : Colors.grey,
+                        ),
+                        title: Text(
+                          itemTitle.isNotEmpty
+                              ? 'Alert for: $itemTitle'
+                              : 'Alert for item: $itemId',
+                        ),
+                        trailing: thumbUrl != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: Image.network(
+                                    thumbUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: Colors.grey.shade200,
+                                      alignment: Alignment.center,
+                                      child: const Icon(Icons.image_not_supported),
+                                    ),
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        color: Colors.grey.shade200,
+                                        alignment: Alignment.center,
+                                        child: const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              )
+                            : null,
+                        onTap: () async {
+                          // Mark as seen
+                          await FirebaseFirestore.instance
+                              .collection('alerts')
+                              .doc(alertId)
+                              .update({'status': 'seen'});
 
-                  final itemData = itemSnap.data() ?? {};
+                          final resolvedSnap = docSnap ??
+                              await FirebaseFirestore.instance
+                                  .collection('items')
+                                  .doc(itemId)
+                                  .get();
 
-                  // Option 1: open item details
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (_) => ItemDetailScreen(item: itemData),
-                  //   ),
-                  // );
+                          if (!resolvedSnap.exists) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Item not found'),
+                              ),
+                            );
+                            return;
+                          }
 
-                  // Option 2: directly open chat about this item
-                  final chatsRef =
-                      FirebaseFirestore.instance.collection('chats');
+                          final fullItemData = resolvedSnap.data() ?? {};
 
-                  final existing = await chatsRef
-                      .where('itemId', isEqualTo: itemId)
-                      .where('finderId', isEqualTo: user.uid)
-                      .where('seekerId', isEqualTo: seekerId)
-                      .limit(1)
-                      .get();
+                          final chatsRef = FirebaseFirestore.instance
+                              .collection('chats');
 
-                  String chatId;
-                  if (existing.docs.isNotEmpty) {
-                    chatId = existing.docs.first.id;
-                  } else {
-                    final newChatRef = await chatsRef.add({
-                      'itemId': itemId,
-                      'finderId': user.uid,
-                      'seekerId': seekerId,
-                      'createdAt': FieldValue.serverTimestamp(),
-                      'lastMessage': '',
-                      'lastMessageAt': FieldValue.serverTimestamp(),
-                    });
-                    chatId = newChatRef.id;
-                  }
+                          final existing = await chatsRef
+                              .where('itemId', isEqualTo: itemId)
+                              .where('finderId', isEqualTo: user.uid)
+                              .where('seekerId', isEqualTo: seekerId)
+                              .limit(1)
+                              .get();
 
-                  // ignore: use_build_context_synchronously
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        chatId: chatId,
-                        item: itemData,
+                          String chatId;
+                          if (existing.docs.isNotEmpty) {
+                            chatId = existing.docs.first.id;
+                          } else {
+                            final newChatRef = await chatsRef.add({
+                              'itemId': itemId,
+                              'finderId': user.uid,
+                              'seekerId': seekerId,
+                              'createdAt': FieldValue.serverTimestamp(),
+                              'lastMessage': '',
+                              'lastMessageAt': FieldValue.serverTimestamp(),
+                              'lastSenderRole': '',
+                              'finderLastReadAt': FieldValue.serverTimestamp(),
+                              'seekerLastReadAt': FieldValue.serverTimestamp(),
+                            });
+                            chatId = newChatRef.id;
+                          }
+
+                          // ignore: use_build_context_synchronously
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                chatId: chatId,
+                                item: fullItemData,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   );
                 },
               );
             },
+            ),
           );
         },
       ),

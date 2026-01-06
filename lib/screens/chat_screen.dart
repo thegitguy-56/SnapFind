@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -20,9 +22,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final _auth = FirebaseAuth.instance;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSub;
+  String? _myRole;
+  bool _markedInitialRead = false;
 
   @override
   void dispose() {
+    _messagesSub?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -39,6 +45,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final String currentUid = user.uid;
     final String finderId = widget.item['userId']?.toString() ?? '';
+
+    _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
 
     // Determine role based on ids
     final String senderRole =
@@ -61,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await chatRef.update({
       'lastMessage': text,
       'lastMessageAt': now,
+      'lastSenderRole': senderRole,
     });
 
     // Slight delay then scroll to bottom
@@ -74,11 +83,40 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _markChatRead() async {
+    final role = _myRole;
+    if (role == null) return;
+
+    final fieldName =
+        role == 'finder' ? 'finderLastReadAt' : 'seekerLastReadAt';
+
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .update({fieldName: FieldValue.serverTimestamp()});
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     final String currentUid = user?.uid ?? '';
     final String finderId = widget.item['userId']?.toString() ?? '';
+
+    _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
+
+    // Keep the chat marked as read while the screen is visible.
+    _messagesSub ??= FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .collection('messages')
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .listen((_) => _markChatRead());
+
+    if (!_markedInitialRead) {
+      _markedInitialRead = true;
+      _markChatRead();
+    }
 
     return Scaffold(
       appBar: AppBar(

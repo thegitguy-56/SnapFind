@@ -8,6 +8,8 @@ import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> _setupPush() async {
   final messaging = FirebaseMessaging.instance;
 
@@ -37,8 +39,20 @@ Future<void> _setupPush() async {
 
   // Optional: handle foreground messages
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    // You can show a Snackbar or dialog here if you want
-    // debugPrint('Foreground message: ${message.notification?.title}');
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    final title = message.notification?.title ?? 'SnapFind';
+    final body = message.notification?.body ?? 'You have a new update';
+
+    ScaffoldMessenger.of(ctx)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$title: $body'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
   });
 }
 
@@ -95,6 +109,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SnapFind',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

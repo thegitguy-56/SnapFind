@@ -1,39 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'chat_screen.dart';
 
-class ItemDetailScreen extends StatelessWidget {
+class ItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> item;
 
   const ItemDetailScreen({super.key, required this.item});
+
+  @override
+  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
+}
+
+class _ItemDetailScreenState extends State<ItemDetailScreen> {
+  late Map<String, dynamic> _item;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = Map<String, dynamic>.from(widget.item);
+  }
+
+  Future<void> _refreshItem() async {
+    final String? docId = _item['docId']?.toString() ?? _item['id']?.toString();
+    if (docId == null) {
+      // Keep the pull-to-refresh gesture responsive even if we lack an id.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      return;
+    }
+
+    try {
+      final snap =
+          await FirebaseFirestore.instance.collection('items').doc(docId).get();
+
+      if (!snap.exists || snap.data() == null) return;
+
+      setState(() {
+        _item = {...snap.data()!, 'docId': snap.id};
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Refresh failed: $e')),
+      );
+    }
+  }
 
   Future<void> _onAlertPressed(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to alert the finder")),
+        const SnackBar(content: Text('Please log in to alert the finder')),
       );
       return;
     }
 
     final String seekerId = user.uid;
-    final String? finderId = item['userId']?.toString();
+    final String? finderId = _item['userId']?.toString();
     final String? itemId =
-        item['id']?.toString() ?? item['docId']?.toString();
+        _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
+        const SnackBar(content: Text('Missing item information')),
       );
       return;
     }
 
-    // If you are the finder, no alert needed
     if (finderId == seekerId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You posted this item")),
+        const SnackBar(content: Text('You posted this item')),
       );
       return;
     }
@@ -41,7 +79,6 @@ class ItemDetailScreen extends StatelessWidget {
     final alertsRef = FirebaseFirestore.instance.collection('alerts');
 
     try {
-      // Check if an alert already exists for this item + seeker
       final existing = await alertsRef
           .where('itemId', isEqualTo: itemId)
           .where('seekerId', isEqualTo: seekerId)
@@ -50,7 +87,7 @@ class ItemDetailScreen extends StatelessWidget {
 
       if (existing.docs.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("You already alerted the finder")),
+          const SnackBar(content: Text('You already alerted the finder')),
         );
         return;
       }
@@ -64,11 +101,11 @@ class ItemDetailScreen extends StatelessWidget {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Alert sent to finder")),
+        const SnackBar(content: Text('Alert sent to finder')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to send alert: $e")),
+        SnackBar(content: Text('Failed to send alert: $e')),
       );
     }
   }
@@ -77,19 +114,19 @@ class ItemDetailScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to chat with the finder")),
+        const SnackBar(content: Text('Please log in to chat with the finder')),
       );
       return;
     }
 
     final String seekerId = user.uid;
-    final String? finderId = item['userId']?.toString();
+    final String? finderId = _item['userId']?.toString();
     final String? itemId =
-        item['id']?.toString() ?? item['docId']?.toString();
+        _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
+        const SnackBar(content: Text('Missing item information')),
       );
       return;
     }
@@ -98,7 +135,6 @@ class ItemDetailScreen extends StatelessWidget {
     String chatId;
 
     try {
-      // 1) Check if a chat already exists between this seeker and finder for this item
       final existing = await chatsRef
           .where('itemId', isEqualTo: itemId)
           .where('finderId', isEqualTo: finderId)
@@ -109,7 +145,6 @@ class ItemDetailScreen extends StatelessWidget {
       if (existing.docs.isNotEmpty) {
         chatId = existing.docs.first.id;
       } else {
-        // 2) Create a new chat document
         final newChatRef = await chatsRef.add({
           'itemId': itemId,
           'finderId': finderId,
@@ -117,35 +152,37 @@ class ItemDetailScreen extends StatelessWidget {
           'createdAt': FieldValue.serverTimestamp(),
           'lastMessage': '',
           'lastMessageAt': FieldValue.serverTimestamp(),
+          'lastSenderRole': '',
+          'finderLastReadAt': FieldValue.serverTimestamp(),
+          'seekerLastReadAt': FieldValue.serverTimestamp(),
         });
         chatId = newChatRef.id;
       }
 
-      // 3) Navigate to ChatScreen
       if (context.mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ChatScreen(
               chatId: chatId,
-              item: item,
+              item: _item,
             ),
           ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to open chat: $e")),
+        SnackBar(content: Text('Failed to open chat: $e')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> urlsDynamic = item['imageUrls'] ?? <dynamic>[];
+    final List<dynamic> urlsDynamic = _item['imageUrls'] ?? <dynamic>[];
     final List<String> urls = urlsDynamic.cast<String>();
-    final note = (item['note'] ?? '').toString();
-    final String status = (item['status'] as String?) ?? 'found';
+    final note = (_item['note'] ?? '').toString();
+    final String status = (_item['status'] as String?) ?? 'found';
 
     final bool isReturned = status == 'returned';
 
@@ -156,61 +193,76 @@ class ItemDetailScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: Column(
-              children: [
-                if (urls.isNotEmpty)
-                  SizedBox(
-                    height: 260,
-                    width: double.infinity,
-                    child: Stack(
-                      children: [
-                        PageView.builder(
-                          itemCount: urls.length,
-                          itemBuilder: (context, index) {
-                            final url = urls[index];
-                            return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: ClipRRect(
+            child: RefreshIndicator(
+              onRefresh: _refreshItem,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  if (urls.isNotEmpty)
+                    SizedBox(
+                      height: 260,
+                      width: double.infinity,
+                      child: Stack(
+                        children: [
+                          PageView.builder(
+                            itemCount: urls.length,
+                            itemBuilder: (context, index) {
+                              final url = urls[index];
+                              return Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: CachedNetworkImage(
+                                    imageUrl: url,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, _) => Container(
+                                      color: Colors.grey.shade200,
+                                      alignment: Alignment.center,
+                                      child: const CircularProgressIndicator(
+                                        strokeWidth: 3,
+                                      ),
+                                    ),
+                                    errorWidget: (context, _, __) => Container(
+                                      color: Colors.grey.shade300,
+                                      alignment: Alignment.center,
+                                      child:
+                                          const Icon(Icons.broken_image_outlined),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          if (isReturned)
+                            Container(
+                              height: 260,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  url,
-                                  fit: BoxFit.cover,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'ITEM RETURNED',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        if (isReturned)
-                          Container(
-                            height: 260,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.55),
-                              borderRadius: BorderRadius.circular(12),
                             ),
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'ITEM RETURNED',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                Expanded(
-                  child: SingleChildScrollView(
+                  Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['objectType'] ?? '',
+                          _item['objectType'] ?? '',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -229,7 +281,7 @@ class ItemDetailScreen extends StatelessWidget {
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
-                                text: (item['color'] ?? '').toString(),
+                                text: (_item['color'] ?? '').toString(),
                               ),
                             ],
                           ),
@@ -247,7 +299,7 @@ class ItemDetailScreen extends StatelessWidget {
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
-                                text: (item['brand'] ?? '').toString(),
+                                text: (_item['brand'] ?? '').toString(),
                               ),
                             ],
                           ),
@@ -265,7 +317,7 @@ class ItemDetailScreen extends StatelessWidget {
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
-                                text: (item['location'] ?? '').toString(),
+                                text: (_item['location'] ?? '').toString(),
                               ),
                             ],
                           ),
@@ -281,8 +333,7 @@ class ItemDetailScreen extends StatelessWidget {
                               children: [
                                 const TextSpan(
                                   text: 'Note: ',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 TextSpan(text: note),
                               ],
@@ -291,7 +342,7 @@ class ItemDetailScreen extends StatelessWidget {
                         ],
                         const SizedBox(height: 16),
                         Text(
-                          'Posted by: ${item['userEmail'] ?? ''}',
+                          'Posted by: ${_item['userEmail'] ?? ''}',
                           style: const TextStyle(
                             color: Colors.blueGrey,
                             fontSize: 14,
@@ -310,12 +361,11 @@ class ItemDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          // Buttons section – disabled when returned
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
@@ -337,8 +387,10 @@ class ItemDetailScreen extends StatelessWidget {
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -357,10 +409,12 @@ class ItemDetailScreen extends StatelessWidget {
                     onPressed:
                         isReturned ? null : () => _onChatPressed(context),
                     child: const Text(
-                      "Chat with finder",
+                      'Chat with finder',
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
