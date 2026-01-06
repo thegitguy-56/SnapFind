@@ -32,7 +32,7 @@ class FirebaseService {
     // 2) Save document with list of image URLs + note
     await _firestore.collection('items').doc(id).set({
       'id': id,
-      'userId': user.uid,          // finder / uploader
+      'userId': user.uid, // finder / uploader
       'userEmail': user.email,
       'objectType': tags['object_type'] ?? '',
       'color': tags['color'] ?? '',
@@ -40,30 +40,53 @@ class FirebaseService {
       'note': tags['note'] ?? '',
       'imageUrls': imageUrls,
       'location': location,
-      'timestamp': FieldValue.serverTimestamp(),
-      'status': 'found',           // not returned yet
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'found', // not returned yet
       'matched': false,
     });
   }
 
-  // MAIN FEED: show only items that are still found (not returned)
+  // ✅ FIXED getItemsStream
   static Stream<List<Map<String, dynamic>>> getItemsStream() {
     return _firestore
         .collection('items')
-        //.where('status', isEqualTo: 'found')
-        .orderBy('timestamp', descending: true)
+        // 1. REMOVE the .orderBy() here. It hides data!
+        // .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map(
-                (d) => {
-                  ...d.data(),
-                  'docId': d.id, // used when updating status
-                },
-              )
-              .where((item) => item['status'] == 'found')
-              .toList(),
-        );
+        .map((snap) {
+          final docs = snap.docs.map((d) {
+            final data = d.data();
+
+            // Normalize status
+            final normalizedStatus = (data['status']?.toString() ?? '')
+                .trim()
+                .toLowerCase();
+
+            // 2. Handle both naming conventions safely
+            final timeField = data['createdAt'] ?? data['timestamp'];
+
+            return {
+              ...data,
+              'docId': d.id,
+              'status': normalizedStatus,
+              'createdAt': timeField, // Unify them into one key for the UI
+            };
+          }).toList();
+
+          // 3. Sort here in Dart (Safe for mixed data)
+          docs.sort((a, b) {
+            final tA = a['createdAt']; // Could be Timestamp or null
+            final tB = b['createdAt'];
+
+            if (tA == null) return 1; // Nulls go to bottom
+            if (tB == null) return -1;
+
+            // Firestore Timestamps have a compareTo method
+            return tB.compareTo(tA); // Descending order
+          });
+
+          return docs;
+        });
   }
 
   static Future<List<Map<String, dynamic>>> searchItems(String query) async {
