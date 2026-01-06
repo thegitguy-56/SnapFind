@@ -109,108 +109,7 @@ class _LostItemScreenState extends State<LostItemScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Image container
-          if (_selectedImage != null)
-            SizedBox(
-              height: 250,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  _selectedImage!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                ),
-              ),
-            )
-          else
-            Container(
-              height: 250,
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.orange.shade100),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.image_outlined,
-                    size: 48,
-                    color: Colors.orange.shade300,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No image selected',
-                    style: TextStyle(
-                      color: Colors.orange.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap "Pick Image" to add a photo (optional)',
-                    style: TextStyle(
-                      color: Colors.orange.shade400,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          // Pick Image button
-          ElevatedButton.icon(
-            onPressed: _pickImageFromGallery,
-            icon: const Icon(Icons.image),
-            label: const Text('Pick Image'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black12,
-              foregroundColor: Colors.black87,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: const BorderSide(color: Colors.black26),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-
-          if (_selectedImage != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12.0),
-              child: ElevatedButton.icon(
-                onPressed: _removeImage,
-                icon: const Icon(Icons.close),
-                label: const Text('Remove Image'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade50,
-                  foregroundColor: Colors.red.shade700,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(color: Colors.red.shade200),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          // Form card
+          // Form card - moved to TOP
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -361,6 +260,38 @@ class _LostItemScreenState extends State<LostItemScreen> {
               ),
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          // Attach photo button - simple text style
+          TextButton(
+            onPressed: _pickImageFromGallery,
+            child: const Text('Attach photo (optional)'),
+          ),
+
+          // Image thumbnail preview
+          if (_selectedImage != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  _selectedImage!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _removeImage,
+              child: Text(
+                'Remove photo',
+                style: TextStyle(color: Colors.red.shade600),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 16),
 
