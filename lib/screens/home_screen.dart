@@ -24,10 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _pages = const [FeedScreen(), UploadScreen(), LostItemScreen()];
 
-  Stream<int> _bellBadgeStream() {
+  // NEW: returns true if there is any unread alert or chat
+  Stream<bool> _bellHasUnreadStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Stream.empty();
+      return const Stream<bool>.empty();
     }
 
     final alertsStream = FirebaseFirestore.instance
@@ -46,16 +47,16 @@ class _HomeScreenState extends State<HomeScreen> {
         .where('seekerId', isEqualTo: user.uid)
         .snapshots();
 
-    return Stream<int>.multi((controller) {
-      int alertCount = 0;
-      int finderUnread = 0;
-      int seekerUnread = 0;
+    return Stream<bool>.multi((controller) {
+      bool hasAlert = false;
+      bool hasFinderUnread = false;
+      bool hasSeekerUnread = false;
 
-      void emit() => controller.add(alertCount + finderUnread + seekerUnread);
+      void emit() => controller.add(hasAlert || hasFinderUnread || hasSeekerUnread);
 
       final alertSub = alertsStream.listen(
         (snapshot) {
-          alertCount = snapshot.size;
+          hasAlert = snapshot.docs.isNotEmpty;
           emit();
         },
         onError: controller.addError,
@@ -63,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final finderSub = finderChatsStream.listen(
         (snapshot) {
-          finderUnread = _countUnreadChats(snapshot, 'finder');
+          hasFinderUnread = _countUnreadChats(snapshot, 'finder') > 0;
           emit();
         },
         onError: controller.addError,
@@ -71,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final seekerSub = seekerChatsStream.listen(
         (snapshot) {
-          seekerUnread = _countUnreadChats(snapshot, 'seeker');
+          hasSeekerUnread = _countUnreadChats(snapshot, 'seeker') > 0;
           emit();
         },
         onError: controller.addError,
@@ -126,37 +127,27 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: const IconThemeData(color: Colors.blue),
         foregroundColor: Colors.blue,
         actions: [
-          StreamBuilder<int>(
-            stream: _bellBadgeStream(),
+          // UPDATED: red-dot bell (no number)
+          StreamBuilder<bool>(
+            stream: _bellHasUnreadStream(),
             builder: (context, snapshot) {
-              final int count = snapshot.data ?? 0;
+              final bool hasUnread = snapshot.data ?? false;
 
               return IconButton(
                 icon: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     const Icon(Icons.notifications_none),
-                    if (count > 0)
+                    if (hasUnread)
                       Positioned(
                         right: -2,
                         top: -2,
                         child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
                             color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            count.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                            textAlign: TextAlign.center,
+                            shape: BoxShape.circle,
                           ),
                         ),
                       ),
@@ -187,9 +178,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              DrawerHeader(
-                decoration: const BoxDecoration(color: Colors.blue),
-                child: const Text(
+              const DrawerHeader(
+                decoration: BoxDecoration(color: Colors.blue),
+                child: Text(
                   'Menu',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -383,8 +374,8 @@ class _FeedScreenState extends State<FeedScreen> {
                     }
 
                     // Handle both found items (note) and lost items (notes)
-                    final note = (item['note'] ?? item['notes'] ?? '')
-                        .toString();
+                    final note =
+                        (item['note'] ?? item['notes'] ?? '').toString();
 
                     // Determine display fields based on item type
                     final String displayTitle =
@@ -449,7 +440,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                                 ),
                               ),
-
                             Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
@@ -477,26 +467,25 @@ class _FeedScreenState extends State<FeedScreen> {
                                           color: status == 'returned'
                                               ? Colors.green.shade50
                                               : status == 'lost'
-                                              ? Colors.red.shade50
-                                              : Colors.orange.shade50,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                                  ? Colors.red.shade50
+                                                  : Colors.orange.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
                                         child: Text(
                                           status == 'lost'
                                               ? 'LOST'
                                               : status == 'returned'
-                                              ? 'RETURNED'
-                                              : 'FOUND',
+                                                  ? 'RETURNED'
+                                                  : 'FOUND',
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                             color: status == 'returned'
                                                 ? Colors.green.shade800
                                                 : status == 'lost'
-                                                ? Colors.red.shade800
-                                                : Colors.orange.shade800,
+                                                    ? Colors.red.shade800
+                                                    : Colors.orange.shade800,
                                           ),
                                         ),
                                       ),
@@ -504,7 +493,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                                   const SizedBox(height: 4),
 
-                                  // Display color if available (found items)
+                                  // Display color if available
                                   if (displayColor.isNotEmpty)
                                     Row(
                                       children: [
@@ -538,7 +527,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   if (displayColor.isNotEmpty)
                                     const SizedBox(height: 2),
 
-                                  // Display brand if available (found items)
+                                  // Display brand if available
                                   if (displayBrand.isNotEmpty)
                                     Row(
                                       children: [
@@ -641,7 +630,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                         ),
                                       ),
                                       if (isFinder && status == 'found')
-                                        // Styled button
                                         OutlinedButton.icon(
                                           style: OutlinedButton.styleFrom(
                                             backgroundColor:
@@ -668,7 +656,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                             Icons.check_circle_outline,
                                             size: 18,
                                           ),
-                                          label: const Text('Mark as returned'),
+                                          label:
+                                              const Text('Mark as returned'),
                                           onPressed: () async {
                                             final String? docId =
                                                 item['docId'] as String?;
@@ -677,7 +666,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                             await FirebaseFirestore.instance
                                                 .collection('items')
                                                 .doc(docId)
-                                                .update({'status': 'returned'});
+                                                .update(
+                                                    {'status': 'returned'});
                                           },
                                         ),
                                     ],
