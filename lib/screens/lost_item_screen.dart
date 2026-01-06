@@ -67,14 +67,17 @@ class _LostItemScreenState extends State<LostItemScreen> {
     }
   }
 
-  void _submitReport() {
+  bool _isFormValid() {
     final itemName = _itemNameController.text.trim();
     final location = _locationController.text.trim();
+    return itemName.isNotEmpty &&
+        _selectedCategory != null &&
+        location.isNotEmpty &&
+        _lostDate != null;
+  }
 
-    if (itemName.isEmpty || _selectedCategory == null || location.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in required fields')),
-      );
+  void _submitReport() {
+    if (!_isFormValid()) {
       return;
     }
 
@@ -188,11 +191,23 @@ class _LostItemScreenState extends State<LostItemScreen> {
                   // Item name field
                   TextField(
                     controller: _itemNameController,
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Item Name *',
                       hintText: 'e.g., Black Wallet',
                     ),
                   ),
+                  if (_itemNameController.text.trim().isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Item name is required',
+                        style: TextStyle(
+                          color: Colors.red.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 12),
 
@@ -213,6 +228,17 @@ class _LostItemScreenState extends State<LostItemScreen> {
                     },
                     decoration: const InputDecoration(labelText: 'Category *'),
                   ),
+                  if (_selectedCategory == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Category is required',
+                        style: TextStyle(
+                          color: Colors.red.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 12),
 
@@ -220,12 +246,24 @@ class _LostItemScreenState extends State<LostItemScreen> {
                   TextField(
                     controller: _locationController,
                     maxLines: 2,
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Last Known Location *',
                       hintText: 'e.g., Main Street Station',
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  if (_locationController.text.trim().isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Location is required',
+                        style: TextStyle(
+                          color: Colors.red.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 12),
 
@@ -233,11 +271,27 @@ class _LostItemScreenState extends State<LostItemScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          _lostDate != null
-                              ? 'Lost Date: ${_lostDate!.toLocal().toString().split(' ')[0]}'
-                              : 'Lost Date: Not selected',
-                          style: const TextStyle(fontSize: 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _lostDate != null
+                                  ? 'Lost Date: ${_lostDate!.toLocal().toString().split(' ')[0]}'
+                                  : 'Lost Date: Not selected',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            if (_lostDate == null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Lost date is required',
+                                  style: TextStyle(
+                                    color: Colors.red.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       ElevatedButton(
@@ -279,10 +333,12 @@ class _LostItemScreenState extends State<LostItemScreen> {
 
           // Submit button
           ElevatedButton(
-            onPressed: _submitReport,
+            onPressed: _isFormValid() ? _submitReport : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange.shade600,
               foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey.shade300,
+              disabledForegroundColor: Colors.grey.shade600,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
