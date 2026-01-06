@@ -20,11 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  final _pages = const [
-    FeedScreen(),
-    UploadScreen(),
-    SearchScreen(),
-  ];
+  final _pages = const [FeedScreen(), UploadScreen(), SearchScreen()];
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _alertsStream() {
     final user = FirebaseAuth.instance.currentUser;
@@ -44,25 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text(
           'SnapFind',
-          style: TextStyle(
-            color: Colors.blue,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.blue),
         foregroundColor: Colors.blue,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HistoryScreen(),
-                ),
-              );
-            },
-          ),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _alertsStream(),
             builder: (context, snapshot) {
@@ -105,21 +87,60 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const AlertsScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const AlertsScreen()),
                   );
                 },
               );
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService.signOut();
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              );
             },
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: Colors.blue),
+              child: const Text(
+                'Menu',
+                textAlign: TextAlign.center, 
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('History'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () async {
+                Navigator.pop(context);
+                await AuthService.signOut();
+              },
+            ),
+          ],
+        ),
       ),
       body: _pages[_index],
       bottomNavigationBar: BottomNavigationBar(
@@ -127,12 +148,18 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (i) => setState(() => _index = i),
         backgroundColor: Colors.blue,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.white,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.black,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Upload'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.camera_alt),
+            label: 'Upload',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.warning_amber),
+            label: 'Lost',
+          ),
         ],
       ),
     );
@@ -172,8 +199,7 @@ class FeedScreen extends StatelessWidget {
                   final note = (item['note'] ?? '').toString();
 
                   final String? finderId = item['userId'] as String?;
-                  final String status =
-                      (item['status'] as String?) ?? 'found';
+                  final String status = (item['status'] as String?) ?? 'found';
                   final bool isFinder =
                       currentUser != null && finderId == currentUser.uid;
 
@@ -198,9 +224,7 @@ class FeedScreen extends StatelessWidget {
                             offset: const Offset(0, 4),
                           ),
                         ],
-                        border: Border.all(
-                          color: Colors.grey.shade200,
-                        ),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +272,9 @@ class FeedScreen extends StatelessWidget {
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: status == 'returned'
                                             ? Colors.green.shade50
@@ -273,8 +299,11 @@ class FeedScreen extends StatelessWidget {
                                 // Bold headings
                                 Row(
                                   children: [
-                                    const Icon(Icons.color_lens,
-                                        size: 16, color: Colors.grey),
+                                    const Icon(
+                                      Icons.color_lens,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: RichText(
@@ -290,9 +319,7 @@ class FeedScreen extends StatelessWidget {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            TextSpan(
-                                              text: item['color'] ?? '',
-                                            ),
+                                            TextSpan(text: item['color'] ?? ''),
                                           ],
                                         ),
                                       ),
@@ -302,8 +329,11 @@ class FeedScreen extends StatelessWidget {
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
-                                    const Icon(Icons.sell,
-                                        size: 16, color: Colors.grey),
+                                    const Icon(
+                                      Icons.sell,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: RichText(
@@ -319,9 +349,7 @@ class FeedScreen extends StatelessWidget {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            TextSpan(
-                                              text: item['brand'] ?? '',
-                                            ),
+                                            TextSpan(text: item['brand'] ?? ''),
                                           ],
                                         ),
                                       ),
@@ -332,8 +360,11 @@ class FeedScreen extends StatelessWidget {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.location_on,
-                                        size: 16, color: Colors.grey),
+                                    const Icon(
+                                      Icons.location_on,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: RichText(
@@ -374,9 +405,7 @@ class FeedScreen extends StatelessWidget {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        TextSpan(
-                                          text: note,
-                                        ),
+                                        TextSpan(text: note),
                                       ],
                                     ),
                                   ),
@@ -399,16 +428,16 @@ class FeedScreen extends StatelessWidget {
                                       // Styled button
                                       OutlinedButton.icon(
                                         style: OutlinedButton.styleFrom(
-                                          backgroundColor:
-                                              Colors.green.shade50,
+                                          backgroundColor: Colors.green.shade50,
                                           foregroundColor:
                                               Colors.green.shade800,
                                           side: BorderSide(
                                             color: Colors.green.shade400,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(20),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
                                           ),
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 12,
@@ -432,9 +461,7 @@ class FeedScreen extends StatelessWidget {
                                           await FirebaseFirestore.instance
                                               .collection('items')
                                               .doc(docId)
-                                              .update(
-                                                {'status': 'returned'},
-                                              );
+                                              .update({'status': 'returned'});
                                         },
                                       ),
                                   ],

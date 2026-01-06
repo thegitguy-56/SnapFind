@@ -94,3 +94,5 @@ Runner.xcworkspace/
 xcuserdata/
 DerivedData/
 
+# Api key is kept as an evironment variable
+lib/config/secrets.dart
