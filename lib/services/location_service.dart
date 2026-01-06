@@ -6,7 +6,7 @@ class LocationService {
   static const double _nearbyThresholdMeters = 100.0;
 
   // Fallback location name when no campus POI matches
-  static const String _fallbackLocation = 'Campus Area';
+  static const String _fallbackLocation = 'Saveetha University, Saveetha Nagar';
 
   /// List of campus Points of Interest (POIs) with coordinates
   /// Format: {name, latitude, longitude}
@@ -48,6 +48,11 @@ class LocationService {
       'name': 'Krishna Hostel',
       'latitude': 13.03024076348444,
       'longitude': 80.01802632071957,
+    },
+    {
+      'name': 'Noyyal Hostel',
+      'latitude': 13.027879118447064, 
+      'longitude': 80.01751355671419,
     },
     // Add more campus POIs here with actual coordinates
   ];
