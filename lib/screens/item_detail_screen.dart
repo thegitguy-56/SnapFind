@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import 'chat_screen.dart';
 
@@ -64,14 +63,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
     if (finderId == null || itemId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Missing item information')),
+        const SnackBar(content: Text("Missing item information")),
       );
       return;
     }
 
     if (finderId == seekerId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You posted this item')),
+        const SnackBar(content: Text("You posted this item")),
       );
       return;
     }
@@ -101,11 +100,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Alert sent to finder')),
+        const SnackBar(content: Text("Alert sent to finder")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send alert: $e')),
+        SnackBar(content: Text("Failed to send alert: $e")),
       );
     }
   }
@@ -126,7 +125,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
     if (finderId == null || itemId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Missing item information')),
+        const SnackBar(content: Text("Missing item information")),
       );
       return;
     }
@@ -172,7 +171,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open chat: $e')),
+        SnackBar(content: Text("Failed to open chat: $e")),
       );
     }
   }
@@ -187,76 +186,59 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final bool isReturned = status == 'returned';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Item details'),
-      ),
+      appBar: AppBar(title: const Text('Item details')),
       body: Column(
         children: [
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refreshItem,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  if (urls.isNotEmpty)
-                    SizedBox(
-                      height: 260,
-                      width: double.infinity,
-                      child: Stack(
-                        children: [
-                          PageView.builder(
-                            itemCount: urls.length,
-                            itemBuilder: (context, index) {
-                              final url = urls[index];
-                              return Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: CachedNetworkImage(
-                                    imageUrl: url,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, _) => Container(
-                                      color: Colors.grey.shade200,
-                                      alignment: Alignment.center,
-                                      child: const CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                      ),
-                                    ),
-                                    errorWidget: (context, _, __) => Container(
-                                      color: Colors.grey.shade300,
-                                      alignment: Alignment.center,
-                                      child:
-                                          const Icon(Icons.broken_image_outlined),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          if (isReturned)
-                            Container(
-                              height: 260,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.55),
+            child: Column(
+              children: [
+                if (urls.isNotEmpty)
+                  SizedBox(
+                    height: 260,
+                    width: double.infinity,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: urls.length,
+                          itemBuilder: (context, index) {
+                            final url = urls[index];
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'ITEM RETURNED',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
                                 ),
+                              ),
+                            );
+                          },
+                        ),
+                        if (isReturned)
+                          Container(
+                            height: 260,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'ITEM RETURNED',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
-                  Padding(
+                  ),
+                Expanded(
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,6 +304,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 4),
                         if (note.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           RichText(
@@ -361,11 +344,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
+          // Buttons section – disabled when returned
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
@@ -387,10 +371,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -409,12 +391,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     onPressed:
                         isReturned ? null : () => _onChatPressed(context),
                     child: const Text(
-                      'Chat with finder',
+                      "Chat with finder",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
