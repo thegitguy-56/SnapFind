@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
 import 'upload_screen.dart';
 import 'search_screen.dart';
+import 'lost_item_screen.dart';
 import 'item_detail_screen.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
@@ -20,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  final _pages = const [FeedScreen(), UploadScreen(), SearchScreen()];
+  final _pages = const [FeedScreen(), UploadScreen(), LostItemScreen()];
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _alertsStream() {
     final user = FirebaseAuth.instance.currentUser;
@@ -112,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: const BoxDecoration(color: Colors.blue),
               child: const Text(
                 'Menu',
-                textAlign: TextAlign.center, 
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 42,
