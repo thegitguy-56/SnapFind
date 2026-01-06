@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../services/gemini_service.dart';
 import '../services/firebase_service.dart';
+import '../services/location_service.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -15,18 +16,20 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  List<File> _images = []; // multiple images
+  List<File> _images = [];
   bool _loading = false;
   Map<String, dynamic>? _tags;
   String? _location;
+  String? _locationName;
 
   final ImagePicker _picker = ImagePicker();
+  final LocationService _locationService = LocationService();
 
-  // Controllers for manual edit
   final TextEditingController _objectController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   @override
   void dispose() {
@@ -34,6 +37,7 @@ class _UploadScreenState extends State<UploadScreen> {
     _colorController.dispose();
     _brandController.dispose();
     _noteController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -42,8 +46,8 @@ class _UploadScreenState extends State<UploadScreen> {
     if (xfile == null) return;
 
     setState(() {
-      _images.add(File(xfile.path)); // add new photo
-      _tags = null; // clear old AI tags
+      _images.add(File(xfile.path));
+      _tags = null;
       _objectController.clear();
       _colorController.clear();
       _brandController.clear();
@@ -63,19 +67,31 @@ class _UploadScreenState extends State<UploadScreen> {
       return;
     }
 
-    final pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-    setState(() {
-      _location = '${pos.latitude}, ${pos.longitude}';
-    });
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Use LocationService to get human-readable location name
+      final locationName = await _locationService.resolveLocationName(pos);
+
+      setState(() {
+        _location = '${pos.latitude}, ${pos.longitude}';
+        _locationName = locationName;
+        _locationController.text = locationName;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
+    }
   }
 
   Future<void> _analyze() async {
     if (_images.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick an image first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pick an image first')));
       return;
     }
     setState(() => _loading = true);
@@ -88,9 +104,9 @@ class _UploadScreenState extends State<UploadScreen> {
         _brandController.text = tags['brand'] ?? '';
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('AI error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('AI error: $e')));
     } finally {
       setState(() => _loading = false);
     }
@@ -103,6 +119,15 @@ class _UploadScreenState extends State<UploadScreen> {
       );
       return;
     }
+
+    final finalLocation = _locationController.text.trim();
+    if (finalLocation.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please confirm or enter a location')),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final manualTags = {
@@ -113,26 +138,28 @@ class _UploadScreenState extends State<UploadScreen> {
       };
 
       await FirebaseService.saveItem(
-        images: _images, // pass all images
+        images: _images,
         tags: manualTags,
-        location: _location ?? 'Unknown',
+        location: finalLocation,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Item saved!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Item saved!')));
       setState(() {
         _images = [];
         _tags = null;
         _location = null;
+        _locationName = null;
         _objectController.clear();
         _colorController.clear();
         _brandController.clear();
         _noteController.clear();
+        _locationController.clear();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
     } finally {
       setState(() => _loading = false);
     }
@@ -193,10 +220,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Tap "Take Photo" to capture an item',
-                    style: TextStyle(
-                      color: Colors.blue.shade400,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.blue.shade400, fontSize: 12),
                   ),
                 ],
               ),
@@ -210,13 +234,10 @@ class _UploadScreenState extends State<UploadScreen> {
             icon: const Icon(Icons.camera_alt),
             label: const Text('Take Photo'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black12,      // light black, semi-transparent
-              foregroundColor: Colors.black87,      // icon + text
+              backgroundColor: Colors.black12, // light black, semi-transparent
+              foregroundColor: Colors.black87, // icon + text
               elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
                 side: const BorderSide(color: Colors.black26),
@@ -267,9 +288,7 @@ class _UploadScreenState extends State<UploadScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _colorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Color',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Color'),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -286,9 +305,25 @@ class _UploadScreenState extends State<UploadScreen> {
                         labelText: 'Additional notes (optional)',
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    if (_location != null)
-                      Text('Location (from GPS): $_location'),
+                    const SizedBox(height: 12),
+                    // Location confirmation field
+                    TextField(
+                      controller: _locationController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm or edit location',
+                        hintText:
+                            'Tap to confirm GPS location or type a landmark',
+                        border: const OutlineInputBorder(),
+                        helperText: _location != null
+                            ? 'GPS: $_location'
+                            : 'No location captured yet',
+                        helperStyle: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -305,9 +340,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: _loading
                   ? const SizedBox(
