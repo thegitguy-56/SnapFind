@@ -17,7 +17,8 @@ class UploadScreen extends StatefulWidget {
 
 class _UploadScreenState extends State<UploadScreen> {
   List<File> _images = [];
-  bool _loading = false;
+  bool _isAnalyzing = false;
+  bool _isSaving = false;
   Map<String, dynamic>? _tags;
   String? _location;
   String? _locationName;
@@ -30,6 +31,8 @@ class _UploadScreenState extends State<UploadScreen> {
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+
+  bool get _isBusy => _isAnalyzing || _isSaving;
 
   @override
   void dispose() {
@@ -94,7 +97,7 @@ class _UploadScreenState extends State<UploadScreen> {
       ).showSnackBar(const SnackBar(content: Text('Pick an image first')));
       return;
     }
-    setState(() => _loading = true);
+    setState(() => _isAnalyzing = true);
     try {
       final tags = await GeminiService.analyzeImages(_images);
       setState(() {
@@ -108,7 +111,7 @@ class _UploadScreenState extends State<UploadScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('AI error: $e')));
     } finally {
-      setState(() => _loading = false);
+      setState(() => _isAnalyzing = false);
     }
   }
 
@@ -128,7 +131,7 @@ class _UploadScreenState extends State<UploadScreen> {
       return;
     }
 
-    setState(() => _loading = true);
+    setState(() => _isSaving = true);
     try {
       final manualTags = {
         'object_type': _objectController.text.trim(),
@@ -161,7 +164,7 @@ class _UploadScreenState extends State<UploadScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Save error: $e')));
     } finally {
-      setState(() => _loading = false);
+      setState(() => _isSaving = false);
     }
   }
 
@@ -253,9 +256,17 @@ class _UploadScreenState extends State<UploadScreen> {
 
           if (_images.isNotEmpty)
             ElevatedButton.icon(
-              onPressed: _loading ? null : _analyze,
-              icon: const Icon(Icons.smart_toy),
-              label: const Text('Analyze with AI'),
+              onPressed: _isBusy ? null : _analyze,
+              icon: _isAnalyzing
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.smart_toy),
+              label: _isAnalyzing
+                  ? const Text('Analyzing...')
+                  : const Text('Analyze with AI'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple.shade50,
                 foregroundColor: Colors.deepPurple.shade800,
@@ -333,7 +344,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
           if (_tags != null)
             ElevatedButton(
-              onPressed: _loading ? null : _save,
+              onPressed: _isBusy ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
                 foregroundColor: Colors.white,
@@ -342,7 +353,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: _loading
+              child: _isSaving
                   ? const SizedBox(
                       height: 18,
                       width: 18,
