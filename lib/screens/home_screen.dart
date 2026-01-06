@@ -167,8 +167,64 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class FeedScreen extends StatelessWidget {
+class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
+
+  @override
+  State<FeedScreen> createState() => _FeedScreenState();
+}
+
+class _FeedScreenState extends State<FeedScreen> {
+  String _selectedStatusFilter = 'found'; // found, lost, returned
+
+  Widget _buildTab(String label, String value, int count) {
+    final isSelected = _selectedStatusFilter == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedStatusFilter = value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? Colors.blue : Colors.transparent,
+              width: 3,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blue : Colors.grey,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.blue : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +232,39 @@ class FeedScreen extends StatelessWidget {
 
     return Column(
       children: [
+        // Tab navigation with live counts
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: StreamBuilder<List<Map<String, dynamic>>>(
+            stream: FirebaseService.getItemsStream(),
+            builder: (context, statsSnap) {
+              final allItems = statsSnap.data ?? [];
+              final foundCount = allItems.where((d) {
+                final s = d['status']?.toString() ?? '';
+                return s.trim().toLowerCase() == 'found';
+              }).length;
+              final lostCount = allItems.where((d) {
+                final s = d['status']?.toString() ?? '';
+                return s.trim().toLowerCase() == 'lost';
+              }).length;
+              final returnedCount = allItems.where((d) {
+                final s = d['status']?.toString() ?? '';
+                return s.trim().toLowerCase() == 'returned';
+              }).length;
+              return Row(
+                children: [
+                  Expanded(child: _buildTab('Found', 'found', foundCount)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildTab('Lost', 'lost', lostCount)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTab('Returned', 'returned', returnedCount),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
             stream: FirebaseService.getItemsStream(),
@@ -183,9 +272,19 @@ class FeedScreen extends StatelessWidget {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final items = snapshot.data ?? [];
+              var items = snapshot.data ?? [];
+
+              // Filter items by selected status (normalize status string)
+              items = items.where((item) {
+                final statusStr = (item['status']?.toString() ?? '')
+                    .trim()
+                    .toLowerCase();
+                if (statusStr.isEmpty) return false;
+                return statusStr == _selectedStatusFilter;
+              }).toList();
+
               if (items.isEmpty) {
-                return const Center(child: Text('No items yet'));
+                return Center(child: Text('No $_selectedStatusFilter items'));
               }
               return ListView.builder(
                 padding: const EdgeInsets.all(8),
@@ -193,14 +292,29 @@ class FeedScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = items[index];
 
-                  final List<dynamic> urlsDynamic =
-                      item['imageUrls'] ?? <dynamic>[];
-                  final List<String> urls = urlsDynamic.cast<String>();
+                  // Handle both found items (imageUrls) and lost items (imageUrl)
+                  List<String> urls = [];
+                  if (item['imageUrls'] != null) {
+                    final urlsDynamic = item['imageUrls'] as List<dynamic>;
+                    urls = urlsDynamic.cast<String>();
+                  } else if (item['imageUrl'] != null) {
+                    urls = [item['imageUrl'] as String];
+                  }
 
-                  final note = (item['note'] ?? '').toString();
+                  // Handle both found items (note) and lost items (notes)
+                  final note = (item['note'] ?? item['notes'] ?? '').toString();
+
+                  // Determine display fields based on item type
+                  final String displayTitle =
+                      item['objectType'] ?? item['itemName'] ?? 'Item';
+                  final String displayColor = item['color'] ?? '';
+                  final String displayBrand = item['brand'] ?? '';
+                  final String displayLocation =
+                      item['location'] ?? item['lastKnownLocation'] ?? '';
 
                   final String? finderId = item['userId'] as String?;
-                  final String status = (item['status'] as String?) ?? 'found';
+                  final String status =
+                      (item['status']?.toString().trim().toLowerCase()) ?? '';
                   final bool isFinder =
                       currentUser != null && finderId == currentUser.uid;
 
@@ -220,7 +334,7 @@ class FeedScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -264,7 +378,7 @@ class FeedScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        item['objectType'] ?? '',
+                                        displayTitle,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -279,16 +393,24 @@ class FeedScreen extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: status == 'returned'
                                             ? Colors.green.shade50
+                                            : status == 'lost'
+                                            ? Colors.red.shade50
                                             : Colors.orange.shade50,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        status.toUpperCase(),
+                                        status == 'lost'
+                                            ? 'LOST'
+                                            : status == 'returned'
+                                            ? 'RETURNED'
+                                            : 'FOUND',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                           color: status == 'returned'
                                               ? Colors.green.shade800
+                                              : status == 'lost'
+                                              ? Colors.red.shade800
                                               : Colors.orange.shade800,
                                         ),
                                       ),
@@ -297,99 +419,107 @@ class FeedScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
 
-                                // Bold headings
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.color_lens,
-                                      size: 16,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.black87,
-                                          ),
-                                          children: [
-                                            const TextSpan(
-                                              text: 'Color: ',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                // Display color if available (found items)
+                                if (displayColor.isNotEmpty)
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.color_lens,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black87,
                                             ),
-                                            TextSpan(text: item['color'] ?? ''),
-                                          ],
+                                            children: [
+                                              const TextSpan(
+                                                text: 'Color: ',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              TextSpan(text: displayColor),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.sell,
-                                      size: 16,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.black87,
-                                          ),
-                                          children: [
-                                            const TextSpan(
-                                              text: 'Brand: ',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                    ],
+                                  ),
+                                if (displayColor.isNotEmpty)
+                                  const SizedBox(height: 2),
+
+                                // Display brand if available (found items)
+                                if (displayBrand.isNotEmpty)
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.sell,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black87,
                                             ),
-                                            TextSpan(text: item['brand'] ?? ''),
-                                          ],
+                                            children: [
+                                              const TextSpan(
+                                                text: 'Brand: ',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              TextSpan(text: displayBrand),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.black87,
-                                          ),
-                                          children: [
-                                            const TextSpan(
-                                              text: 'Location: ',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
+                                    ],
+                                  ),
+                                if (displayBrand.isNotEmpty)
+                                  const SizedBox(height: 2),
+
+                                // Display location
+                                if (displayLocation.isNotEmpty)
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black87,
+                                            ),
+                                            children: [
+                                              const TextSpan(
+                                                text: 'Location: ',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                            TextSpan(
-                                              text: item['location'] ?? '',
-                                            ),
-                                          ],
+                                              TextSpan(text: displayLocation),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
 
                                 if (note.isNotEmpty) ...[
                                   const SizedBox(height: 4),
@@ -417,7 +547,7 @@ class FeedScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        'Posted by: ${item['userEmail'] ?? ''}',
+                                        'Posted by: ${item['userEmail'] ?? item['reportedBy'] ?? ''}',
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.blue,

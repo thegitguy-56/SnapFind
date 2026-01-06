@@ -101,16 +101,22 @@ class _LostItemScreenState extends State<LostItemScreen> {
       final itemId = const Uuid().v4();
       String? imageUrl;
 
-      // Upload image if selected
+      // Step 1: Upload image if selected (must complete before Firestore save)
       if (_selectedImage != null) {
-        final ref = FirebaseStorage.instance.ref().child(
-          'lost_items/${itemId}.jpg',
-        );
-        await ref.putFile(_selectedImage!);
-        imageUrl = await ref.getDownloadURL();
+        try {
+          final ref = FirebaseStorage.instance.ref().child(
+            'lost_items/${itemId}.jpg',
+          );
+          await ref.putFile(_selectedImage!);
+          imageUrl = await ref.getDownloadURL();
+        } on FirebaseException catch (e) {
+          throw Exception('Image upload failed: ${e.message}');
+        } catch (e) {
+          throw Exception('Image upload error: $e');
+        }
       }
 
-      // Prepare data
+      // Step 2: Prepare Firestore data
       final data = {
         'id': itemId,
         'itemName': _itemNameController.text.trim(),
@@ -128,19 +134,22 @@ class _LostItemScreenState extends State<LostItemScreen> {
         data['imageUrl'] = imageUrl;
       }
 
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('items')
-          .doc(itemId)
-          .set(data);
+      // Step 3: Save to Firestore (only after image upload succeeds)
+      try {
+        await FirebaseFirestore.instance
+            .collection('items')
+            .doc(itemId)
+            .set(data);
+      } on FirebaseException catch (e) {
+        throw Exception('Failed to save report: ${e.message}');
+      }
 
-      // Show success message
+      // Step 4: Show success and reset form
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lost item reported successfully!')),
         );
 
-        // Reset form
         setState(() {
           _itemNameController.clear();
           _locationController.clear();
