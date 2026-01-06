@@ -112,9 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: const BoxDecoration(color: Colors.blue),
               child: const Text(
                 'Menu',
+                textAlign: TextAlign.center, 
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 42,
                   fontWeight: FontWeight.bold,
                 ),
               ),

@@ -22,9 +22,9 @@ class _SearchScreenState extends State<SearchScreen> {
       final res = await FirebaseService.searchItems(query);
       setState(() => _results = res);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Search error: $e')));
     } finally {
       setState(() => _loading = false);
     }
@@ -33,6 +33,14 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Search',
+          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+        ),
+        iconTheme: const IconThemeData(color: Colors.blue),
+        foregroundColor: Colors.blue,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -84,7 +92,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                   builder: (_) => AlertDialog(
                                     title: const Text('Item found!'),
                                     content: Text(
-                                        'Owner email: ${item['userEmail'] ?? 'Unknown'}\n\nIn real app, we would send them a notification.'),
+                                      'Owner email: ${item['userEmail'] ?? 'Unknown'}\n\nIn real app, we would send them a notification.',
+                                    ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
