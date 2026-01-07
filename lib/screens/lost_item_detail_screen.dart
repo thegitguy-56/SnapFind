@@ -1,9 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'chat_screen.dart';
+import '../utils/date_utils.dart'; // formatTimestamp(...)
 
 class LostItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -23,29 +26,6 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
     _item = Map<String, dynamic>.from(widget.item);
   }
 
-  Future<void> _refreshItem() async {
-    final String? docId = _item['docId']?.toString() ?? _item['id']?.toString();
-    if (docId == null) {
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      return;
-    }
-
-    try {
-      final snap =
-          await FirebaseFirestore.instance.collection('items').doc(docId).get();
-
-      if (!snap.exists || snap.data() == null) return;
-
-      setState(() {
-        _item = {...snap.data()!, 'docId': snap.id};
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Refresh failed: $e')),
-      );
-    }
-  }
 
   Future<String> _ensureChatAndSendVerification({
     required String finderId,
@@ -118,16 +98,16 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
         _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
     if (finderId == seekerId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You posted this item")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("You posted this item")));
       return;
     }
 
@@ -242,26 +222,24 @@ ${marksController.text.trim()}
 
       if (!mounted) return;
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Details sent to owner. Wait for approval to chat.'),
+          content: Text('Details sent to owner. Wait for approval to chat.'),
         ),
       );
 
       Navigator.push(
+        // ignore: use_build_context_synchronously
         context,
         MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            chatId: chatId,
-            item: _item,
-          ),
+          builder: (_) => ChatScreen(chatId: chatId, item: _item),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send details: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send details: $e')));
     }
   }
 
@@ -294,9 +272,9 @@ ${marksController.text.trim()}
   Future<void> _onChatPressed(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to chat')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please log in to chat')));
       return;
     }
 
@@ -306,9 +284,9 @@ ${marksController.text.trim()}
         _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
@@ -346,17 +324,15 @@ ${marksController.text.trim()}
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              chatId: chatId,
-              item: _item,
-            ),
+            builder: (_) => ChatScreen(chatId: chatId, item: _item),
           ),
         );
       }
+        // ignore: use_build_context_synchronously
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to open chat: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to open chat: $e")));
     }
   }
 
@@ -366,8 +342,7 @@ ${marksController.text.trim()}
     final String? imageUrl = _item['imageUrl'] as String?;
     final String title = (_item['itemName'] ?? 'Item').toString();
     final String category = (_item['category'] ?? '').toString();
-    final String location =
-        (_item['lastKnownLocation'] ?? '').toString();
+    final String location = (_item['lastKnownLocation'] ?? '').toString();
     final String note = (_item['notes'] ?? '').toString();
     final String postedBy =
         (_item['reportedBy'] ?? _item['userEmail'] ?? '').toString();
@@ -402,8 +377,9 @@ ${marksController.text.trim()}
                                 child: const SizedBox(
                                   width: 32,
                                   height: 32,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               ),
                               errorWidget: (context, _, __) => Container(
@@ -500,6 +476,32 @@ ${marksController.text.trim()}
                           ),
                         ],
                         const SizedBox(height: 16),
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,
+                            ),
+                            children: [
+                              const TextSpan(
+                                text: 'Lost on: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(
+                                text: formatTimestamp(_item['lostDate']),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Reported on: ${formatTimestamp(_item['createdAt'])}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         Text(
                           'Reported by: $postedBy',
                           style: const TextStyle(
@@ -526,12 +528,7 @@ ${marksController.text.trim()}
           ),
           Container(
             color: Colors.white,
-            padding: EdgeInsets.fromLTRB(
-              12,
-              16,
-              12,
-              24 + bottomInset,
-            ),
+            padding: EdgeInsets.fromLTRB(12, 16, 12, 24 + bottomInset),
             child: Row(
               children: [
                 Expanded(
@@ -545,11 +542,10 @@ ${marksController.text.trim()}
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: isReturned
-                        ? null
-                        : () => _showVerificationDialog(context),
+                    onPressed:
+                        isReturned ? null : () => _showVerificationDialog(context),
                     child: const Text(
-                      "I Found this",
+                      'I found this',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
@@ -583,7 +579,7 @@ ${marksController.text.trim()}
                           onPressed:
                               disabled ? null : () => _onChatPressed(context),
                           child: const Text(
-                            "Chat with owner",
+                            'Chat with owner',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,

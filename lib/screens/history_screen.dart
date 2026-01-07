@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 import 'item_detail_screen.dart';
 
@@ -47,7 +48,25 @@ class HistoryScreen extends StatelessWidget {
 
               return ListTile(
                 title: Text(data['objectType'] ?? ''),
-                subtitle: Text('Location: ${data['location'] ?? ''}'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Location: ${data['location'] ?? ''}'),
+                    Builder(
+                      builder: (context) {
+                        final timestamp = data['timestamp'] ?? data['createdAt'];
+                        if (timestamp is Timestamp) {
+                          final date = timestamp.toDate();
+                          return Text(
+                            'Date: ${DateFormat('MMM dd, yyyy').format(date)}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                ),
                 onTap: () {
                   // pass same map shape as Feed uses
                   final item = {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 import '../services/firebase_service.dart';
 
@@ -136,6 +138,19 @@ class _SearchScreenState extends State<SearchScreen> {
                                   Text('Brand: ${item['brand'] ?? ''}'),
                                   Text(
                                       'Location: ${item['location'] ?? ''}'),
+                                  Builder(
+                                    builder: (context) {
+                                      final timestamp = item['createdAt'] ?? item['timestamp'];
+                                      if (timestamp is Timestamp) {
+                                        final date = timestamp.toDate();
+                                        return Text(
+                                          'Date: ${DateFormat('MMM dd, yyyy').format(date)}',
+                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  ),
                                 ],
                               ),
                               onTap: () {

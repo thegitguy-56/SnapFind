@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
+import '../utils/date_utils.dart';
 import 'upload_screen.dart';
 import 'search_screen.dart';
 import 'lost_item_screen.dart';
 import 'item_detail_screen.dart';
-import 'lost_item_detail_screen.dart'; 
+import 'lost_item_detail_screen.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'returned_items_screen.dart';
@@ -55,31 +57,23 @@ class _HomeScreenState extends State<HomeScreen> {
       bool hasFinderUnread = false;
       bool hasSeekerUnread = false;
 
-      void emit() => controller.add(hasAlert || hasFinderUnread || hasSeekerUnread);
+      void emit() =>
+          controller.add(hasAlert || hasFinderUnread || hasSeekerUnread);
 
-      final alertSub = alertsStream.listen(
-        (snapshot) {
-          hasAlert = snapshot.docs.isNotEmpty;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final alertSub = alertsStream.listen((snapshot) {
+        hasAlert = snapshot.docs.isNotEmpty;
+        emit();
+      }, onError: controller.addError);
 
-      final finderSub = finderChatsStream.listen(
-        (snapshot) {
-          hasFinderUnread = _countUnreadChats(snapshot, 'finder') > 0;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final finderSub = finderChatsStream.listen((snapshot) {
+        hasFinderUnread = _countUnreadChats(snapshot, 'finder') > 0;
+        emit();
+      }, onError: controller.addError);
 
-      final seekerSub = seekerChatsStream.listen(
-        (snapshot) {
-          hasSeekerUnread = _countUnreadChats(snapshot, 'seeker') > 0;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final seekerSub = seekerChatsStream.listen((snapshot) {
+        hasSeekerUnread = _countUnreadChats(snapshot, 'seeker') > 0;
+        emit();
+      }, onError: controller.addError);
 
       controller.onCancel = () {
         alertSub.cancel();
@@ -101,14 +95,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final Timestamp? lastMessageAt = data['lastMessageAt'] as Timestamp?;
       if (lastMessageAt == null) continue;
 
-      final Timestamp? lastReadAt = data[myRole == 'finder'
-              ? 'finderLastReadAt'
-              : 'seekerLastReadAt']
-          as Timestamp?;
+      final Timestamp? lastReadAt =
+          data[myRole == 'finder' ? 'finderLastReadAt' : 'seekerLastReadAt']
+              as Timestamp?;
 
       final bool fromOtherSide =
           lastSenderRole.isEmpty || lastSenderRole != myRole;
-      final bool unreadByTime = lastReadAt == null ||
+      final bool unreadByTime =
+          lastReadAt == null ||
           lastMessageAt.toDate().isAfter(lastReadAt.toDate());
 
       if (fromOtherSide && unreadByTime) {
@@ -206,7 +200,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const HistoryScreen(),
+                          ),
                         );
                       },
                     ),
@@ -229,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // BOTTOM FIXED ITEMS
               const Divider(height: 1),
-              
+
               // BOTTOM: help / about / logout with safe bottom padding
               Padding(
                 padding: EdgeInsets.only(
@@ -245,7 +241,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const FeedbackScreen(),
+                          ),
                         );
                       },
                     ),
@@ -256,7 +254,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AboutScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const AboutScreen(),
+                          ),
                         );
                       },
                     ),
@@ -429,8 +429,8 @@ class _FeedScreenState extends State<FeedScreen> {
                       urls = [item['imageUrl'] as String];
                     }
 
-                    final note =
-                        (item['note'] ?? item['notes'] ?? '').toString();
+                    final note = (item['note'] ?? item['notes'] ?? '')
+                        .toString();
 
                     final String displayTitle =
                         item['objectType'] ?? item['itemName'] ?? 'Item';
@@ -498,23 +498,23 @@ class _FeedScreenState extends State<FeedScreen> {
                                             fit: BoxFit.cover,
                                             placeholder: (context, _) =>
                                                 const Center(
-                                              child: SizedBox(
-                                                width: 32,
-                                                height: 32,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
+                                                  child: SizedBox(
+                                                    width: 32,
+                                                    height: 32,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                            errorWidget:
-                                                (context, _, __) => Center(
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                color: Colors.grey.shade500,
-                                                size: 40,
-                                              ),
-                                            ),
+                                            errorWidget: (context, _, __) =>
+                                                Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey.shade500,
+                                                    size: 40,
+                                                  ),
+                                                ),
                                           ),
                                         ],
                                       );
@@ -550,29 +550,38 @@ class _FeedScreenState extends State<FeedScreen> {
                                           color: status == 'returned'
                                               ? Colors.green.shade50
                                               : status == 'lost'
-                                                  ? Colors.red.shade50
-                                                  : Colors.orange.shade50,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                              ? Colors.red.shade50
+                                              : Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           status == 'lost'
                                               ? 'LOST'
                                               : status == 'returned'
-                                                  ? 'RETURNED'
-                                                  : 'FOUND',
+                                              ? 'RETURNED'
+                                              : 'FOUND',
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                             color: status == 'returned'
                                                 ? Colors.green.shade800
                                                 : status == 'lost'
-                                                    ? Colors.red.shade800
-                                                    : Colors.orange.shade800,
+                                                ? Colors.red.shade800
+                                                : Colors.orange.shade800,
                                           ),
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formatTimestamp(item['createdAt']),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
 
@@ -667,8 +676,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                TextSpan(
-                                                    text: displayLocation),
+                                                TextSpan(text: displayLocation),
                                               ],
                                             ),
                                           ),
@@ -737,8 +745,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                             Icons.check_circle_outline,
                                             size: 18,
                                           ),
-                                          label:
-                                              const Text('Mark as returned'),
+                                          label: const Text('Mark as returned'),
                                           onPressed: () async {
                                             final String? docId =
                                                 item['docId'] as String?;
@@ -747,8 +754,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                             await FirebaseFirestore.instance
                                                 .collection('items')
                                                 .doc(docId)
-                                                .update(
-                                                    {'status': 'returned'});
+                                                .update({'status': 'returned'});
                                           },
                                         ),
                                     ],

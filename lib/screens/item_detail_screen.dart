@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'chat_screen.dart';
+import '../utils/date_utils.dart'; // contains formatTimestamp
 
 class ItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -31,8 +32,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
 
     try {
-      final snap =
-          await FirebaseFirestore.instance.collection('items').doc(docId).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('items')
+          .doc(docId)
+          .get();
 
       if (!snap.exists || snap.data() == null) return;
 
@@ -41,9 +44,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Refresh failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Refresh failed: $e')));
     }
   }
 
@@ -78,7 +81,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         'finderLastReadAt': FieldValue.serverTimestamp(),
         'seekerLastReadAt': FieldValue.serverTimestamp(),
         'hasVerification': false,
-        'status': 'pending', // chat approval status
+        'status': 'pending',
       });
     }
 
@@ -118,16 +121,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
     if (finderId == seekerId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You posted this item")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("You posted this item")));
       return;
     }
 
@@ -244,24 +247,20 @@ ${marksController.text.trim()}
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Details sent to finder. Wait for approval to chat.'),
+          content: Text('Details sent to finder. Wait for approval to chat.'),
         ),
       );
 
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            chatId: chatId,
-            item: _item,
-          ),
+          builder: (_) => ChatScreen(chatId: chatId, item: _item),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send details: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send details: $e')));
     }
   }
 
@@ -306,9 +305,9 @@ ${marksController.text.trim()}
         _item['id']?.toString() ?? _item['docId']?.toString();
 
     if (finderId == null || itemId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Missing item information")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing item information")));
       return;
     }
 
@@ -346,17 +345,14 @@ ${marksController.text.trim()}
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              chatId: chatId,
-              item: _item,
-            ),
+            builder: (_) => ChatScreen(chatId: chatId, item: _item),
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to open chat: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to open chat: $e")));
     }
   }
 
@@ -368,7 +364,6 @@ ${marksController.text.trim()}
     final String status = (_item['status'] as String?) ?? 'found';
 
     final bool isReturned = status == 'returned';
-
     final double bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -402,7 +397,9 @@ ${marksController.text.trim()}
                                     child: const SizedBox(
                                       width: 32,
                                       height: 32,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   ),
                                   errorWidget: (context, _, __) => Container(
@@ -468,8 +465,7 @@ ${marksController.text.trim()}
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
-                                text: (_item['color'] ?? '').toString(),
-                              ),
+                                  text: (_item['color'] ?? '').toString()),
                             ],
                           ),
                         ),
@@ -486,8 +482,7 @@ ${marksController.text.trim()}
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
-                                text: (_item['brand'] ?? '').toString(),
-                              ),
+                                  text: (_item['brand'] ?? '').toString()),
                             ],
                           ),
                         ),
@@ -530,6 +525,14 @@ ${marksController.text.trim()}
                         ],
                         const SizedBox(height: 16),
                         Text(
+                          'Posted on: ${formatTimestamp(_item['createdAt'])}',
+                          style: const TextStyle(
+                            color: Colors.blueGrey,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
                           'Posted by: ${_item['userEmail'] ?? ''}',
                           style: const TextStyle(
                             color: Colors.blueGrey,
@@ -559,7 +562,7 @@ ${marksController.text.trim()}
               12,
               16,
               12,
-              24 + bottomInset, // extra safe space at bottom
+              24 + bottomInset,
             ),
             child: Row(
               children: [
@@ -579,8 +582,10 @@ ${marksController.text.trim()}
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -612,7 +617,9 @@ ${marksController.text.trim()}
                             "Chat with finder",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       );
