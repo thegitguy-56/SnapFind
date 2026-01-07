@@ -13,6 +13,7 @@ import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'returned_items_screen.dart';
 import 'feedback_screen.dart';
+import 'about_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -252,7 +253,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: const Text('About'),
                       onTap: () {
                         Navigator.pop(context);
-                        // TODO: open About screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AboutScreen()),
+                        );
                       },
                     ),
                     ListTile(
