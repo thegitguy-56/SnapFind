@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
@@ -24,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _pages = const [FeedScreen(), UploadScreen(), LostItemScreen()];
 
-  // NEW: returns true if there is any unread alert or chat
   Stream<bool> _bellHasUnreadStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -127,7 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: const IconThemeData(color: Colors.blue),
         foregroundColor: Colors.blue,
         actions: [
-          // UPDATED: red-dot bell (no number)
           StreamBuilder<bool>(
             stream: _bellHasUnreadStream(),
             builder: (context, snapshot) {
@@ -293,7 +292,6 @@ class _FeedScreenState extends State<FeedScreen> {
 
     return Column(
       children: [
-        // Segmented pill-style navigation bar
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -314,14 +312,11 @@ class _FeedScreenState extends State<FeedScreen> {
         Expanded(
           child: GestureDetector(
             onHorizontalDragEnd: (details) {
-              // Swipe right: Lost → Found
               if (details.primaryVelocity! > 0) {
                 if (_selectedStatusFilter == 'lost') {
                   setState(() => _selectedStatusFilter = 'found');
                 }
-              }
-              // Swipe left: Found → Lost
-              else if (details.primaryVelocity! < 0) {
+              } else if (details.primaryVelocity! < 0) {
                 if (_selectedStatusFilter == 'found') {
                   setState(() => _selectedStatusFilter = 'lost');
                 }
@@ -331,11 +326,23 @@ class _FeedScreenState extends State<FeedScreen> {
               stream: FirebaseService.getItemsStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 8),
+                        Text(
+                          'Loading items…',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
                 }
+
                 var items = snapshot.data ?? [];
 
-                // Filter items by selected status (normalize status string)
                 items = items.where((item) {
                   final statusStr = (item['status']?.toString() ?? '')
                       .trim()
@@ -364,7 +371,6 @@ class _FeedScreenState extends State<FeedScreen> {
                   itemBuilder: (context, index) {
                     final item = items[index];
 
-                    // Handle both found items (imageUrls) and lost items (imageUrl)
                     List<String> urls = [];
                     if (item['imageUrls'] != null) {
                       final urlsDynamic = item['imageUrls'] as List<dynamic>;
@@ -373,11 +379,9 @@ class _FeedScreenState extends State<FeedScreen> {
                       urls = [item['imageUrl'] as String];
                     }
 
-                    // Handle both found items (note) and lost items (notes)
                     final note =
                         (item['note'] ?? item['notes'] ?? '').toString();
 
-                    // Determine display fields based on item type
                     final String displayTitle =
                         item['objectType'] ?? item['itemName'] ?? 'Item';
                     final String displayColor = item['color'] ?? '';
@@ -428,18 +432,45 @@ class _FeedScreenState extends State<FeedScreen> {
                                   width: double.infinity,
                                   child: PageView.builder(
                                     itemCount: urls.length,
+                                    allowImplicitScrolling: true,
                                     itemBuilder: (context, pageIndex) {
                                       final url = urls[pageIndex];
-                                      return Image.network(
-                                        url,
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
+                                      return Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Container(
+                                            color: Colors.grey.shade200,
+                                          ),
+                                          CachedNetworkImage(
+                                            imageUrl: url,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, _) =>
+                                                const Center(
+                                              child: SizedBox(
+                                                width: 32,
+                                                height: 32,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                ),
+                                              ),
+                                            ),
+                                            errorWidget:
+                                                (context, _, __) => Center(
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey.shade500,
+                                                size: 40,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       );
                                     },
                                   ),
                                 ),
                               ),
+
                             Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
@@ -493,7 +524,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                                   const SizedBox(height: 4),
 
-                                  // Display color if available
                                   if (displayColor.isNotEmpty)
                                     Row(
                                       children: [
@@ -527,7 +557,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   if (displayColor.isNotEmpty)
                                     const SizedBox(height: 2),
 
-                                  // Display brand if available
                                   if (displayBrand.isNotEmpty)
                                     Row(
                                       children: [
@@ -561,7 +590,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   if (displayBrand.isNotEmpty)
                                     const SizedBox(height: 2),
 
-                                  // Display location
                                   if (displayLocation.isNotEmpty)
                                     Row(
                                       crossAxisAlignment:
@@ -587,7 +615,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                TextSpan(text: displayLocation),
+                                                TextSpan(
+                                                    text: displayLocation),
                                               ],
                                             ),
                                           ),
