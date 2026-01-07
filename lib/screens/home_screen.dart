@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
+import '../utils/date_utils.dart';
 import 'upload_screen.dart';
 import 'search_screen.dart';
 import 'lost_item_screen.dart';
 import 'item_detail_screen.dart';
+import 'lost_item_detail_screen.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'returned_items_screen.dart';
+import 'feedback_screen.dart';
+import 'about_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _pages = const [FeedScreen(), UploadScreen(), LostItemScreen()];
 
-  // NEW: returns true if there is any unread alert or chat
   Stream<bool> _bellHasUnreadStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -52,31 +57,23 @@ class _HomeScreenState extends State<HomeScreen> {
       bool hasFinderUnread = false;
       bool hasSeekerUnread = false;
 
-      void emit() => controller.add(hasAlert || hasFinderUnread || hasSeekerUnread);
+      void emit() =>
+          controller.add(hasAlert || hasFinderUnread || hasSeekerUnread);
 
-      final alertSub = alertsStream.listen(
-        (snapshot) {
-          hasAlert = snapshot.docs.isNotEmpty;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final alertSub = alertsStream.listen((snapshot) {
+        hasAlert = snapshot.docs.isNotEmpty;
+        emit();
+      }, onError: controller.addError);
 
-      final finderSub = finderChatsStream.listen(
-        (snapshot) {
-          hasFinderUnread = _countUnreadChats(snapshot, 'finder') > 0;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final finderSub = finderChatsStream.listen((snapshot) {
+        hasFinderUnread = _countUnreadChats(snapshot, 'finder') > 0;
+        emit();
+      }, onError: controller.addError);
 
-      final seekerSub = seekerChatsStream.listen(
-        (snapshot) {
-          hasSeekerUnread = _countUnreadChats(snapshot, 'seeker') > 0;
-          emit();
-        },
-        onError: controller.addError,
-      );
+      final seekerSub = seekerChatsStream.listen((snapshot) {
+        hasSeekerUnread = _countUnreadChats(snapshot, 'seeker') > 0;
+        emit();
+      }, onError: controller.addError);
 
       controller.onCancel = () {
         alertSub.cancel();
@@ -98,14 +95,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final Timestamp? lastMessageAt = data['lastMessageAt'] as Timestamp?;
       if (lastMessageAt == null) continue;
 
-      final Timestamp? lastReadAt = data[myRole == 'finder'
-              ? 'finderLastReadAt'
-              : 'seekerLastReadAt']
-          as Timestamp?;
+      final Timestamp? lastReadAt =
+          data[myRole == 'finder' ? 'finderLastReadAt' : 'seekerLastReadAt']
+              as Timestamp?;
 
       final bool fromOtherSide =
           lastSenderRole.isEmpty || lastSenderRole != myRole;
-      final bool unreadByTime = lastReadAt == null ||
+      final bool unreadByTime =
+          lastReadAt == null ||
           lastMessageAt.toDate().isAfter(lastReadAt.toDate());
 
       if (fromOtherSide && unreadByTime) {
@@ -127,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: const IconThemeData(color: Colors.blue),
         foregroundColor: Colors.blue,
         actions: [
-          // UPDATED: red-dot bell (no number)
           StreamBuilder<bool>(
             stream: _bellHasUnreadStream(),
             builder: (context, snapshot) {
@@ -175,52 +171,105 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       drawer: Drawer(
         child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
+          // keep only top padding from SafeArea; handle bottom manually
+          top: true,
+          bottom: false,
+          child: Column(
             children: [
-              const DrawerHeader(
-                decoration: BoxDecoration(color: Colors.blue),
-                child: Text(
-                  'Menu',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                  ),
+              // TOP SCROLLABLE AREA (header + first 2 items)
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const DrawerHeader(
+                      decoration: BoxDecoration(color: Colors.blue),
+                      child: Text(
+                        'Menu',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 42,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.history),
+                      title: const Text('History'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HistoryScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.check_circle),
+                      title: const Text('Returned Items'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReturnedItemsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text('History'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.check_circle),
-                title: const Text('Returned Items'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ReturnedItemsScreen(),
+
+              // BOTTOM FIXED ITEMS
+              const Divider(height: 1),
+
+              // BOTTOM: help / about / logout with safe bottom padding
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).padding.bottom + 8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.help_outline),
+                      title: const Text('Help & feedback'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FeedbackScreen(),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Logout'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await AuthService.signOut();
-                },
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: const Text('About'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AboutScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.logout),
+                      title: const Text('Logout'),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await AuthService.signOut();
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -293,7 +342,6 @@ class _FeedScreenState extends State<FeedScreen> {
 
     return Column(
       children: [
-        // Segmented pill-style navigation bar
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -314,14 +362,11 @@ class _FeedScreenState extends State<FeedScreen> {
         Expanded(
           child: GestureDetector(
             onHorizontalDragEnd: (details) {
-              // Swipe right: Lost → Found
               if (details.primaryVelocity! > 0) {
                 if (_selectedStatusFilter == 'lost') {
                   setState(() => _selectedStatusFilter = 'found');
                 }
-              }
-              // Swipe left: Found → Lost
-              else if (details.primaryVelocity! < 0) {
+              } else if (details.primaryVelocity! < 0) {
                 if (_selectedStatusFilter == 'found') {
                   setState(() => _selectedStatusFilter = 'lost');
                 }
@@ -331,11 +376,23 @@ class _FeedScreenState extends State<FeedScreen> {
               stream: FirebaseService.getItemsStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 8),
+                        Text(
+                          'Loading items…',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
                 }
+
                 var items = snapshot.data ?? [];
 
-                // Filter items by selected status (normalize status string)
                 items = items.where((item) {
                   final statusStr = (item['status']?.toString() ?? '')
                       .trim()
@@ -364,7 +421,6 @@ class _FeedScreenState extends State<FeedScreen> {
                   itemBuilder: (context, index) {
                     final item = items[index];
 
-                    // Handle both found items (imageUrls) and lost items (imageUrl)
                     List<String> urls = [];
                     if (item['imageUrls'] != null) {
                       final urlsDynamic = item['imageUrls'] as List<dynamic>;
@@ -373,11 +429,9 @@ class _FeedScreenState extends State<FeedScreen> {
                       urls = [item['imageUrl'] as String];
                     }
 
-                    // Handle both found items (note) and lost items (notes)
-                    final note =
-                        (item['note'] ?? item['notes'] ?? '').toString();
+                    final note = (item['note'] ?? item['notes'] ?? '')
+                        .toString();
 
-                    // Determine display fields based on item type
                     final String displayTitle =
                         item['objectType'] ?? item['itemName'] ?? 'Item';
                     final String displayColor = item['color'] ?? '';
@@ -393,11 +447,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
                     return GestureDetector(
                       onTap: () {
+                        final Widget screen = status == 'lost'
+                            ? LostItemDetailScreen(item: item)
+                            : ItemDetailScreen(item: item);
+
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => ItemDetailScreen(item: item),
-                          ),
+                          MaterialPageRoute(builder: (_) => screen),
                         );
                       },
                       child: Container(
@@ -428,18 +484,45 @@ class _FeedScreenState extends State<FeedScreen> {
                                   width: double.infinity,
                                   child: PageView.builder(
                                     itemCount: urls.length,
+                                    allowImplicitScrolling: true,
                                     itemBuilder: (context, pageIndex) {
                                       final url = urls[pageIndex];
-                                      return Image.network(
-                                        url,
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
+                                      return Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Container(
+                                            color: Colors.grey.shade200,
+                                          ),
+                                          CachedNetworkImage(
+                                            imageUrl: url,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, _) =>
+                                                const Center(
+                                                  child: SizedBox(
+                                                    width: 32,
+                                                    height: 32,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
+                                                ),
+                                            errorWidget: (context, _, __) =>
+                                                Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey.shade500,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                          ),
+                                        ],
                                       );
                                     },
                                   ),
                                 ),
                               ),
+
                             Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
@@ -467,33 +550,41 @@ class _FeedScreenState extends State<FeedScreen> {
                                           color: status == 'returned'
                                               ? Colors.green.shade50
                                               : status == 'lost'
-                                                  ? Colors.red.shade50
-                                                  : Colors.orange.shade50,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                              ? Colors.red.shade50
+                                              : Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           status == 'lost'
                                               ? 'LOST'
                                               : status == 'returned'
-                                                  ? 'RETURNED'
-                                                  : 'FOUND',
+                                              ? 'RETURNED'
+                                              : 'FOUND',
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                             color: status == 'returned'
                                                 ? Colors.green.shade800
                                                 : status == 'lost'
-                                                    ? Colors.red.shade800
-                                                    : Colors.orange.shade800,
+                                                ? Colors.red.shade800
+                                                : Colors.orange.shade800,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
+                                  Text(
+                                    formatTimestamp(item['createdAt']),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
 
-                                  // Display color if available
                                   if (displayColor.isNotEmpty)
                                     Row(
                                       children: [
@@ -527,7 +618,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   if (displayColor.isNotEmpty)
                                     const SizedBox(height: 2),
 
-                                  // Display brand if available
                                   if (displayBrand.isNotEmpty)
                                     Row(
                                       children: [
@@ -561,7 +651,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   if (displayBrand.isNotEmpty)
                                     const SizedBox(height: 2),
 
-                                  // Display location
                                   if (displayLocation.isNotEmpty)
                                     Row(
                                       crossAxisAlignment:
@@ -656,8 +745,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                             Icons.check_circle_outline,
                                             size: 18,
                                           ),
-                                          label:
-                                              const Text('Mark as returned'),
+                                          label: const Text('Mark as returned'),
                                           onPressed: () async {
                                             final String? docId =
                                                 item['docId'] as String?;
@@ -666,8 +754,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                             await FirebaseFirestore.instance
                                                 .collection('items')
                                                 .doc(docId)
-                                                .update(
-                                                    {'status': 'returned'});
+                                                .update({'status': 'returned'});
                                           },
                                         ),
                                     ],

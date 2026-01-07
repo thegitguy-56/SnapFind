@@ -45,11 +45,16 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickCamera() async {
-    final xfile = await _picker.pickImage(source: ImageSource.camera);
+    // Compress image at capture time: lower resolution + quality
+    final xfile = await _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1200,      // downscale from huge camera resolution
+      imageQuality: 70,    // 0-100, trade-off between size and clarity
+    );
     if (xfile == null) return;
 
     setState(() {
-      _images.add(File(xfile.path));
+      _images = [File(xfile.path)]; // just keep one image for now
       _tags = null;
       _objectController.clear();
       _colorController.clear();
@@ -75,7 +80,6 @@ class _UploadScreenState extends State<UploadScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Use LocationService to get human-readable location name
       final locationName = await _locationService.resolveLocationName(pos);
 
       setState(() {
@@ -99,7 +103,8 @@ class _UploadScreenState extends State<UploadScreen> {
     }
     setState(() => _isAnalyzing = true);
     try {
-      final tags = await GeminiService.analyzeImages(_images);
+      // If GeminiService supports it, send only the first (compressed) image
+      final tags = await GeminiService.analyzeImages([_images.first]);
       setState(() {
         _tags = tags;
         _objectController.text = tags['object_type'] ?? '';
@@ -170,199 +175,227 @@ class _UploadScreenState extends State<UploadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Stack(
         children: [
-          // Camera / image box (rounded, neat)
-          if (_images.isNotEmpty)
-            SizedBox(
-              height: 250,
-              child: PageView.builder(
-                itemCount: _images.length,
-                itemBuilder: (context, index) {
-                  final file = _images[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.file(
-                        file,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
+          ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (_images.isNotEmpty)
+                SizedBox(
+                  height: 250,
+                  child: PageView.builder(
+                    itemCount: _images.length,
+                    itemBuilder: (context, index) {
+                      final file = _images[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(
+                            file,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Container(
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.camera_alt_outlined,
+                        size: 48,
+                        color: Colors.blue.shade300,
                       ),
-                    ),
-                  );
-                },
+                      const SizedBox(height: 12),
+                      Text(
+                        'No image selected',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap "Take Photo" to capture an item',
+                        style: TextStyle(
+                          color: Colors.blue.shade400,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              ElevatedButton.icon(
+                onPressed: _isBusy ? null : _pickCamera,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Take Photo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black12,
+                  foregroundColor: Colors.black87,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: const BorderSide(color: Colors.black26),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            )
-          else
+
+              const SizedBox(height: 16),
+
+              if (_images.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: _isBusy ? null : _analyze,
+                  icon: _isAnalyzing
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                        )
+                      : const Icon(Icons.smart_toy),
+                  label: _isAnalyzing
+                      ? const Text('Analyzing...')
+                      : const Text('Analyze with AI'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple.shade50,
+                    foregroundColor: Colors.deepPurple.shade800,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              if (_tags != null)
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _objectController,
+                          decoration: const InputDecoration(
+                            labelText: 'Object type',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _colorController,
+                          decoration:
+                              const InputDecoration(labelText: 'Color'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _brandController,
+                          decoration: const InputDecoration(
+                            labelText: 'Brand (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _noteController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Additional notes (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _locationController,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            labelText: 'Confirm or edit location',
+                            hintText:
+                                'Tap to confirm GPS location or type a landmark',
+                            border: const OutlineInputBorder(),
+                            helperText: _location != null
+                                ? 'GPS: $_location'
+                                : 'No location captured yet',
+                            helperStyle: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              if (_tags != null)
+                Padding(
+                  padding: EdgeInsets.only(bottom: bottomInset + 8),
+                  child: ElevatedButton(
+                    onPressed: _isBusy ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Save to database'),
+                  ),
+                ),
+            ],
+          ),
+
+          // Full-screen overlay while analyzing/saving so user sees it's working
+          if (_isBusy)
             Container(
-              height: 250,
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue.shade100),
-              ),
+              color: Colors.black45,
+              alignment: Alignment.center,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.camera_alt_outlined,
-                    size: 48,
-                    color: Colors.blue.shade300,
-                  ),
-                  const SizedBox(height: 12),
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 12),
                   Text(
-                    'No image selected',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap "Take Photo" to capture an item',
-                    style: TextStyle(color: Colors.blue.shade400, fontSize: 12),
+                    'Processing image…',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ],
               ),
-            ),
-
-          const SizedBox(height: 16),
-
-          // Take Photo button (rounded, light black transparent)
-          ElevatedButton.icon(
-            onPressed: _pickCamera,
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Take Photo'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black12, // light black, semi-transparent
-              foregroundColor: Colors.black87, // icon + text
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: const BorderSide(color: Colors.black26),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          if (_images.isNotEmpty)
-            ElevatedButton.icon(
-              onPressed: _isBusy ? null : _analyze,
-              icon: _isAnalyzing
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.smart_toy),
-              label: _isAnalyzing
-                  ? const Text('Analyzing...')
-                  : const Text('Analyze with AI'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple.shade50,
-                foregroundColor: Colors.deepPurple.shade800,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          if (_tags != null)
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: _objectController,
-                      decoration: const InputDecoration(
-                        labelText: 'Object type',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _colorController,
-                      decoration: const InputDecoration(labelText: 'Color'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _brandController,
-                      decoration: const InputDecoration(
-                        labelText: 'Brand (optional)',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _noteController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Additional notes (optional)',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Location confirmation field
-                    TextField(
-                      controller: _locationController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm or edit location',
-                        hintText:
-                            'Tap to confirm GPS location or type a landmark',
-                        border: const OutlineInputBorder(),
-                        helperText: _location != null
-                            ? 'GPS: $_location'
-                            : 'No location captured yet',
-                        helperStyle: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          if (_tags != null)
-            ElevatedButton(
-              onPressed: _isBusy ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Save to database'),
             ),
         ],
       ),

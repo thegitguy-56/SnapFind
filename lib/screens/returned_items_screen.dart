@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 import '../services/firebase_service.dart';
 import 'item_detail_screen.dart';
@@ -24,17 +25,29 @@ class ReturnedItemsScreen extends StatelessWidget {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: FirebaseService.getItemsStream(),
         builder: (context, snapshot) {
+          // Global loading indicator while we wait for the first data
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 8),
+                  Text(
+                    'Loading returned items…',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
           }
 
           var items = snapshot.data ?? [];
 
           // Filter to only returned items
           items = items.where((item) {
-            final statusStr = (item['status']?.toString() ?? '')
-                .trim()
-                .toLowerCase();
+            final statusStr =
+                (item['status']?.toString() ?? '').trim().toLowerCase();
             return statusStr == 'returned';
           }).toList();
 
@@ -107,11 +120,43 @@ class ReturnedItemsScreen extends StatelessWidget {
                               itemCount: urls.length,
                               itemBuilder: (context, pageIndex) {
                                 final url = urls[pageIndex];
-                                return Image.network(
-                                  url,
-                                  height: 200,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
+                                return Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    // Light grey placeholder behind
+                                    Container(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                    // Network image with loading indicator
+                                    Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return Center(
+                                          child: SizedBox(
+                                            width: 32,
+                                            height: 32,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              value: progress.expectedTotalBytes !=
+                                                      null
+                                                  ? progress.cumulativeBytesLoaded /
+                                                      progress.expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (context, _, __) => Center(
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          color: Colors.grey.shade500,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 );
                               },
                             ),
@@ -156,7 +201,6 @@ class ReturnedItemsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
 
-                            // Display color if available
                             if (displayColor.isNotEmpty)
                               Row(
                                 children: [
@@ -190,7 +234,6 @@ class ReturnedItemsScreen extends StatelessWidget {
                             if (displayColor.isNotEmpty)
                               const SizedBox(height: 2),
 
-                            // Display brand if available
                             if (displayBrand.isNotEmpty)
                               Row(
                                 children: [
@@ -224,7 +267,6 @@ class ReturnedItemsScreen extends StatelessWidget {
                             if (displayBrand.isNotEmpty)
                               const SizedBox(height: 2),
 
-                            // Display location
                             if (displayLocation.isNotEmpty)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
