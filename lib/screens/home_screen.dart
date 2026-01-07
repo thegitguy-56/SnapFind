@@ -12,6 +12,7 @@ import 'item_detail_screen.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'returned_items_screen.dart';
+import 'feedback_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -240,7 +241,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: const Text('Help & feedback'),
                       onTap: () {
                         Navigator.pop(context);
-                        // TODO: open Help screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+                        );
                       },
                     ),
                     ListTile(
