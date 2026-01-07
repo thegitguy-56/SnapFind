@@ -9,6 +9,7 @@ import 'upload_screen.dart';
 import 'search_screen.dart';
 import 'lost_item_screen.dart';
 import 'item_detail_screen.dart';
+import 'lost_item_detail_screen.dart'; 
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'returned_items_screen.dart';
@@ -446,11 +447,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
                     return GestureDetector(
                       onTap: () {
+                        final Widget screen = status == 'lost'
+                            ? LostItemDetailScreen(item: item)
+                            : ItemDetailScreen(item: item);
+
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => ItemDetailScreen(item: item),
-                          ),
+                          MaterialPageRoute(builder: (_) => screen),
                         );
                       },
                       child: Container(

@@ -5,16 +5,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import 'chat_screen.dart';
 
-class ItemDetailScreen extends StatefulWidget {
+class LostItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> item;
 
-  const ItemDetailScreen({super.key, required this.item});
+  const LostItemDetailScreen({super.key, required this.item});
 
   @override
-  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
+  State<LostItemDetailScreen> createState() => _LostItemDetailScreenState();
 }
 
-class _ItemDetailScreenState extends State<ItemDetailScreen> {
+class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
   late Map<String, dynamic> _item;
 
   @override
@@ -78,7 +78,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         'finderLastReadAt': FieldValue.serverTimestamp(),
         'seekerLastReadAt': FieldValue.serverTimestamp(),
         'hasVerification': false,
-        'status': 'pending', // chat approval status
+        'status': 'pending',
       });
     }
 
@@ -107,7 +107,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to alert the finder')),
+        const SnackBar(content: Text('Please log in to alert the owner')),
       );
       return;
     }
@@ -148,7 +148,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   controller: whereController,
                   maxLines: 2,
                   decoration: const InputDecoration(
-                    labelText: 'Where exactly did you lose it?',
+                    labelText: 'Where exactly did you find it?',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -157,7 +157,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   controller: whenController,
                   maxLines: 2,
                   decoration: const InputDecoration(
-                    labelText: 'Approximate time of loss?',
+                    labelText: 'Approximate time you found it?',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -205,10 +205,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
 
     final verificationText = '''
-Where exactly did you lose it?
+Where exactly did you find it?
 ${whereController.text.trim()}
 
-Approximate time of loss?
+Approximate time you found it?
 ${whenController.text.trim()}
 
 Unique marks or details:
@@ -245,7 +245,7 @@ ${marksController.text.trim()}
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
-              Text('Details sent to finder. Wait for approval to chat.'),
+              Text('Details sent to owner. Wait for approval to chat.'),
         ),
       );
 
@@ -295,7 +295,7 @@ ${marksController.text.trim()}
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to chat with the finder')),
+        const SnackBar(content: Text('Please log in to chat')),
       );
       return;
     }
@@ -362,67 +362,67 @@ ${marksController.text.trim()}
 
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> urlsDynamic = _item['imageUrls'] ?? <dynamic>[];
-    final List<String> urls = urlsDynamic.cast<String>();
-    final note = (_item['note'] ?? '').toString();
-    final String status = (_item['status'] as String?) ?? 'found';
+    // Lost items: single imageUrl, notes, lastKnownLocation, itemName, category, reportedBy
+    final String? imageUrl = _item['imageUrl'] as String?;
+    final String title = (_item['itemName'] ?? 'Item').toString();
+    final String category = (_item['category'] ?? '').toString();
+    final String location =
+        (_item['lastKnownLocation'] ?? '').toString();
+    final String note = (_item['notes'] ?? '').toString();
+    final String postedBy =
+        (_item['reportedBy'] ?? _item['userEmail'] ?? '').toString();
+    final String status = (_item['status'] as String?) ?? 'lost';
 
     final bool isReturned = status == 'returned';
-
     final double bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Item details')),
+      appBar: AppBar(title: const Text('Lost item details')),
       body: Column(
         children: [
           Expanded(
             child: Column(
               children: [
-                if (urls.isNotEmpty)
+                if (imageUrl != null && imageUrl.isNotEmpty)
                   SizedBox(
                     height: 260,
                     width: double.infinity,
                     child: Stack(
                       children: [
-                        PageView.builder(
-                          itemCount: urls.length,
-                          allowImplicitScrolling: true,
-                          itemBuilder: (context, index) {
-                            final url = urls[index];
-                            return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: CachedNetworkImage(
-                                  imageUrl: url,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, _) => Container(
-                                    color: Colors.grey.shade200,
-                                    alignment: Alignment.center,
-                                    child: const SizedBox(
-                                      width: 32,
-                                      height: 32,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                  ),
-                                  errorWidget: (context, _, __) => Container(
-                                    color: Colors.grey.shade200,
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: Colors.grey.shade500,
-                                      size: 40,
-                                    ),
-                                  ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, _) => Container(
+                                color: Colors.grey.shade200,
+                                alignment: Alignment.center,
+                                child: const SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               ),
-                            );
-                          },
+                              errorWidget: (context, _, __) => Container(
+                                color: Colors.grey.shade200,
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey.shade500,
+                                  size: 40,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                         if (isReturned)
                           Container(
                             height: 260,
                             width: double.infinity,
+                            margin: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.55),
                               borderRadius: BorderRadius.circular(12),
@@ -449,12 +449,22 @@ ${marksController.text.trim()}
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _item['objectType'] ?? '',
+                          title,
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (category.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            category,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         RichText(
                           text: TextSpan(
@@ -464,52 +474,13 @@ ${marksController.text.trim()}
                             ),
                             children: [
                               const TextSpan(
-                                text: 'Color: ',
+                                text: 'Last known location: ',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              TextSpan(
-                                text: (_item['color'] ?? '').toString(),
-                              ),
+                              TextSpan(text: location),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
-                            children: [
-                              const TextSpan(
-                                text: 'Brand: ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              TextSpan(
-                                text: (_item['brand'] ?? '').toString(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
-                            children: [
-                              const TextSpan(
-                                text: 'Location: ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              TextSpan(
-                                text: (_item['location'] ?? '').toString(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         if (note.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           RichText(
@@ -520,7 +491,7 @@ ${marksController.text.trim()}
                               ),
                               children: [
                                 const TextSpan(
-                                  text: 'Note: ',
+                                  text: 'Notes: ',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 TextSpan(text: note),
@@ -530,7 +501,7 @@ ${marksController.text.trim()}
                         ],
                         const SizedBox(height: 16),
                         Text(
-                          'Posted by: ${_item['userEmail'] ?? ''}',
+                          'Reported by: $postedBy',
                           style: const TextStyle(
                             color: Colors.blueGrey,
                             fontSize: 14,
@@ -559,7 +530,7 @@ ${marksController.text.trim()}
               12,
               16,
               12,
-              24 + bottomInset, // extra safe space at bottom
+              24 + bottomInset,
             ),
             child: Row(
               children: [
@@ -574,13 +545,16 @@ ${marksController.text.trim()}
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed:
-                        isReturned ? null : () => _showVerificationDialog(context),
+                    onPressed: isReturned
+                        ? null
+                        : () => _showVerificationDialog(context),
                     child: const Text(
-                      "I'm looking for this",
+                      "I Found this",
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -595,7 +569,7 @@ ${marksController.text.trim()}
                       return Tooltip(
                         message: disabled
                             ? "Answer verification questions first"
-                            : "Chat with finder",
+                            : "Chat with owner",
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
@@ -609,10 +583,12 @@ ${marksController.text.trim()}
                           onPressed:
                               disabled ? null : () => _onChatPressed(context),
                           child: const Text(
-                            "Chat with finder",
+                            "Chat with owner",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       );
