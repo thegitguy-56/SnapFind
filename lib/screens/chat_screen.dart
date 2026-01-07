@@ -48,7 +48,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
 
-    // Determine role based on ids
     final String senderRole =
         currentUid == finderId ? 'finder' : 'seeker';
 
@@ -72,7 +71,6 @@ class _ChatScreenState extends State<ChatScreen> {
       'lastSenderRole': senderRole,
     });
 
-    // Slight delay then scroll to bottom
     await Future.delayed(const Duration(milliseconds: 200));
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -104,149 +102,223 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
 
-    // Keep the chat marked as read while the screen is visible.
-    _messagesSub ??= FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .orderBy('createdAt', descending: false)
-        .snapshots()
-        .listen((_) => _markChatRead());
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .snapshots(),
+      builder: (context, chatSnap) {
+        if (!chatSnap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    if (!_markedInitialRead) {
-      _markedInitialRead = true;
-      _markChatRead();
-    }
+        final chatData = chatSnap.data!.data() ?? {};
+        final String status = (chatData['status'] ?? 'pending').toString();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.item['objectType'] ?? 'Chat about this item'),
-            const Text(
-              'Anonymous chat',
-              style: TextStyle(fontSize: 12),
+        final bool isFinder = currentUid == finderId;
+        final bool canSendMessages = status == 'accepted';
+
+        _messagesSub ??= FirebaseFirestore.instance
+            .collection('chats')
+            .doc(widget.chatId)
+            .collection('messages')
+            .orderBy('createdAt', descending: false)
+            .snapshots()
+            .listen((_) => _markChatRead());
+
+        if (!_markedInitialRead) {
+          _markedInitialRead = true;
+          _markChatRead();
+        }
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.item['objectType'] ?? 'Chat about this item'),
+                Text(
+                  status == 'pending'
+                      ? 'Waiting for finder approval'
+                      : status == 'rejected'
+                          ? 'Request rejected'
+                          : 'Anonymous chat',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Messages list
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .doc(widget.chatId)
-                  .collection('messages')
-                  .orderBy('createdAt', descending: false)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Say hi to start the conversation',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data();
-                    final senderRole = (data['senderRole'] ?? '').toString();
-                    final text = (data['text'] ?? '').toString();
-
-                    // isCurrentUser: true if this message is from me
-                    final bool isCurrentUser =
-                        (senderRole == 'finder' && currentUid == finderId) ||
-                        (senderRole == 'seeker' && currentUid != finderId);
-
-                    final Alignment alignment = isCurrentUser
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft;
-
-                    final Color bubbleColor = isCurrentUser
-                        ? Colors.teal
-                        : Colors.grey.shade300;
-
-                    final Color textColor =
-                        isCurrentUser ? Colors.white : Colors.black87;
-
-                    return Align(
-                      alignment: alignment,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: bubbleColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+          ),
+          body: Column(
+            children: [
+              // Finder approval bar
+              if (isFinder && status == 'pending')
+                Container(
+                  color: Colors.yellow.shade100,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
                         child: Text(
-                          text,
-                          style: TextStyle(color: textColor, fontSize: 15),
+                          'Approve this claim?',
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          // Input field (visually higher)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  offset: const Offset(0, -1),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.fromLTRB(8, 10, 8, 22),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message…',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                      TextButton(
+                        onPressed: () async {
+                          await FirebaseFirestore.instance
+                              .collection('chats')
+                              .doc(widget.chatId)
+                              .update({'status': 'rejected'});
+                        },
+                        child: const Text(
+                          'Reject',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await FirebaseFirestore.instance
+                              .collection('chats')
+                              .doc(widget.chatId)
+                              .update({'status': 'accepted'});
+                        },
+                        child: const Text('Accept'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.teal),
-                  onPressed: _sendMessage,
+
+              // Messages list
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('chats')
+                      .doc(widget.chatId)
+                      .collection('messages')
+                      .orderBy('createdAt', descending: false)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final docs = snapshot.data?.docs ?? [];
+
+                    if (docs.isEmpty) {
+                      return Center(
+                        child: Text(
+                          status == 'pending'
+                              ? 'Waiting for finder to review your details…'
+                              : 'No messages yet',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        final senderRole =
+                            (data['senderRole'] ?? '').toString();
+                        final text = (data['text'] ?? '').toString();
+
+                        final bool isCurrentUser =
+                            (senderRole == 'finder' && currentUid == finderId) ||
+                            (senderRole == 'seeker' && currentUid != finderId);
+
+                        final Alignment alignment = isCurrentUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft;
+
+                        final Color bubbleColor = isCurrentUser
+                            ? Colors.teal
+                            : Colors.grey.shade300;
+
+                        final Color textColor =
+                            isCurrentUser ? Colors.white : Colors.black87;
+
+                        return Align(
+                          alignment: alignment,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 4),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: bubbleColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              text,
+                              style:
+                                  TextStyle(color: textColor, fontSize: 15),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+
+              // Input field
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      offset: const Offset(0, -1),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(8, 10, 8, 22),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        minLines: 1,
+                        maxLines: 4,
+                        enabled: canSendMessages,
+                        decoration: InputDecoration(
+                          hintText: status == 'accepted'
+                              ? 'Type a message…'
+                              : (status == 'rejected'
+                                  ? 'Finder rejected this request'
+                                  : 'You can chat after finder accepts'),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 10),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: Icon(
+                        Icons.send,
+                        color: canSendMessages ? Colors.teal : Colors.grey,
+                      ),
+                      onPressed: canSendMessages ? _sendMessage : null,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

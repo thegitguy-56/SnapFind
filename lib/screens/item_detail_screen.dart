@@ -25,7 +25,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Future<void> _refreshItem() async {
     final String? docId = _item['docId']?.toString() ?? _item['id']?.toString();
     if (docId == null) {
-      // Keep the pull-to-refresh gesture responsive even if we lack an id.
       await Future<void>.delayed(const Duration(milliseconds: 300));
       return;
     }
@@ -47,7 +46,63 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 
-  Future<void> _onAlertPressed(BuildContext context) async {
+  Future<String> _ensureChatAndSendVerification({
+    required String finderId,
+    required String seekerId,
+    required String itemId,
+    required String verificationText,
+  }) async {
+    final chatsRef = FirebaseFirestore.instance.collection('chats');
+
+    final existing = await chatsRef
+        .where('itemId', isEqualTo: itemId)
+        .where('finderId', isEqualTo: finderId)
+        .where('seekerId', isEqualTo: seekerId)
+        .limit(1)
+        .get();
+
+    DocumentReference<Map<String, dynamic>> chatRef;
+
+    if (existing.docs.isNotEmpty) {
+      chatRef = existing.docs.first.reference;
+    } else {
+      chatRef = await chatsRef.add({
+        'itemId': itemId,
+        'finderId': finderId,
+        'seekerId': seekerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastSenderRole': '',
+        'finderLastReadAt': FieldValue.serverTimestamp(),
+        'seekerLastReadAt': FieldValue.serverTimestamp(),
+        'hasVerification': false,
+        'status': 'pending', // chat approval status
+      });
+    }
+
+    final messagesRef = chatRef.collection('messages');
+    final now = FieldValue.serverTimestamp();
+
+    await messagesRef.add({
+      'senderRole': 'seeker',
+      'text': verificationText,
+      'createdAt': now,
+      'type': 'verification',
+    });
+
+    await chatRef.update({
+      'lastMessage': verificationText,
+      'lastMessageAt': now,
+      'lastSenderRole': 'seeker',
+      'hasVerification': true,
+      'status': 'pending',
+    });
+
+    return chatRef.id;
+  }
+
+  Future<void> _showVerificationDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,38 +130,164 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       return;
     }
 
-    final alertsRef = FirebaseFirestore.instance.collection('alerts');
+    final whereController = TextEditingController();
+    final whenController = TextEditingController();
+    final marksController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Help verify that it is yours'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: whereController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Where exactly did you lose it?',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: whenController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Approximate time of loss?',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: marksController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText:
+                        'Any unique marks or details? (Dents, scratches, etc.)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (whereController.text.trim().isEmpty ||
+                    whenController.text.trim().isEmpty ||
+                    marksController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please fill all three answers.'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != true) {
+      return;
+    }
+
+    final verificationText = '''
+Where exactly did you lose it?
+${whereController.text.trim()}
+
+Approximate time of loss?
+${whenController.text.trim()}
+
+Unique marks or details:
+${marksController.text.trim()}
+''';
 
     try {
-      final existing = await alertsRef
+      final alertsRef = FirebaseFirestore.instance.collection('alerts');
+      final existingAlert = await alertsRef
           .where('itemId', isEqualTo: itemId)
           .where('seekerId', isEqualTo: seekerId)
           .limit(1)
           .get();
 
-      if (existing.docs.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You already alerted the finder')),
-        );
-        return;
+      if (existingAlert.docs.isEmpty) {
+        await alertsRef.add({
+          'itemId': itemId,
+          'finderId': finderId,
+          'seekerId': seekerId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'pending',
+        });
       }
 
-      await alertsRef.add({
-        'itemId': itemId,
-        'finderId': finderId,
-        'seekerId': seekerId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'status': 'pending',
-      });
+      final chatId = await _ensureChatAndSendVerification(
+        finderId: finderId,
+        seekerId: seekerId,
+        itemId: itemId,
+        verificationText: verificationText,
+      );
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Alert sent to finder")),
+        const SnackBar(
+          content:
+              Text('Details sent to finder. Wait for approval to chat.'),
+        ),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chatId: chatId,
+            item: _item,
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to send alert: $e")),
+        SnackBar(content: Text('Failed to send details: $e')),
       );
     }
+  }
+
+  Future<bool> _hasVerificationForCurrentUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final String seekerId = user.uid;
+    final String? finderId = _item['userId']?.toString();
+    final String? itemId =
+        _item['id']?.toString() ?? _item['docId']?.toString();
+
+    if (finderId == null || itemId == null) return false;
+
+    final chatsRef = FirebaseFirestore.instance.collection('chats');
+
+    final existing = await chatsRef
+        .where('itemId', isEqualTo: itemId)
+        .where('finderId', isEqualTo: finderId)
+        .where('seekerId', isEqualTo: seekerId)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isEmpty) return false;
+
+    final data = existing.docs.first.data();
+    return (data['hasVerification'] ?? false) == true;
   }
 
   Future<void> _onChatPressed(BuildContext context) async {
@@ -154,6 +335,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           'lastSenderRole': '',
           'finderLastReadAt': FieldValue.serverTimestamp(),
           'seekerLastReadAt': FieldValue.serverTimestamp(),
+          'hasVerification': false,
+          'status': 'pending',
         });
         chatId = newChatRef.id;
       }
@@ -348,8 +531,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ],
             ),
           ),
-
-          // Buttons section – disabled when returned
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
@@ -367,7 +548,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       ),
                     ),
                     onPressed:
-                        isReturned ? null : () => _onAlertPressed(context),
+                        isReturned ? null : () => _showVerificationDialog(context),
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
@@ -378,24 +559,37 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isReturned ? Colors.grey : Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed:
-                        isReturned ? null : () => _onChatPressed(context),
-                    child: const Text(
-                      "Chat with finder",
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
+                  child: FutureBuilder<bool>(
+                    future: _hasVerificationForCurrentUser(),
+                    builder: (context, snapshot) {
+                      final hasVerification = snapshot.data ?? false;
+                      final bool disabled = isReturned || !hasVerification;
+
+                      return Tooltip(
+                        message: disabled
+                            ? "Answer verification questions first"
+                            : "Chat with finder",
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                disabled ? Colors.grey : Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed:
+                              disabled ? null : () => _onChatPressed(context),
+                          child: const Text(
+                            "Chat with finder",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

@@ -48,7 +48,8 @@ class _SearchScreenState extends State<SearchScreen> {
             TextField(
               controller: _controller,
               decoration: InputDecoration(
-                hintText: 'Search by type/color/brand (e.g., "blue bottle")',
+                hintText:
+                    'Search by type/color/brand (e.g., "blue bottle")',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: _search,
@@ -67,23 +68,74 @@ class _SearchScreenState extends State<SearchScreen> {
                         itemCount: _results.length,
                         itemBuilder: (context, index) {
                           final item = _results[index];
+
+                          // Support both new imageUrls list and older imageUrl field
+                          String? thumbUrl;
+                          if (item['imageUrls'] != null) {
+                            final urlsDynamic =
+                                item['imageUrls'] as List<dynamic>;
+                            if (urlsDynamic.isNotEmpty) {
+                              thumbUrl = urlsDynamic.first.toString();
+                            }
+                          } else if (item['imageUrl'] != null) {
+                            thumbUrl = item['imageUrl'].toString();
+                          }
+
                           return Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
                             child: ListTile(
-                              leading: item['imageUrl'] != null
-                                  ? Image.network(
-                                      item['imageUrl'],
-                                      width: 50,
-                                      height: 50,
-                                      fit: BoxFit.cover,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              leading: thumbUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: SizedBox(
+                                        width: 56,
+                                        height: 56,
+                                        child: Image.network(
+                                          thumbUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                            color: Colors.grey.shade200,
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.image_not_supported,
+                                              size: 24,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     )
-                                  : const Icon(Icons.image_not_supported),
+                                  : Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.image_not_supported,
+                                        size: 24,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
                               title: Text(item['objectType'] ?? ''),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Color: ${item['color'] ?? ''}'),
                                   Text('Brand: ${item['brand'] ?? ''}'),
-                                  Text('Location: ${item['location'] ?? ''}'),
+                                  Text(
+                                      'Location: ${item['location'] ?? ''}'),
                                 ],
                               ),
                               onTap: () {
