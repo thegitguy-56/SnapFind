@@ -368,6 +368,8 @@ ${marksController.text.trim()}
 
     final bool isReturned = status == 'returned';
 
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Item details')),
       body: Column(
@@ -533,7 +535,12 @@ ${marksController.text.trim()}
           ),
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+            padding: EdgeInsets.fromLTRB(
+              12,
+              16,
+              12,
+              24 + bottomInset, // extra safe space at bottom
+            ),
             child: Row(
               children: [
                 Expanded(

@@ -102,6 +102,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
 
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('chats')
@@ -282,7 +284,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.fromLTRB(8, 10, 8, 22),
+                padding: EdgeInsets.fromLTRB(8, 10, 8, 22 + bottomInset),
                 child: Row(
                   children: [
                     Expanded(
