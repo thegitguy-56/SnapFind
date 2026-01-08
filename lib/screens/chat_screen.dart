@@ -8,11 +8,7 @@ class ChatScreen extends StatefulWidget {
   final String chatId;
   final Map<String, dynamic> item;
 
-  const ChatScreen({
-    super.key,
-    required this.chatId,
-    required this.item,
-  });
+  const ChatScreen({super.key, required this.chatId, required this.item});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -48,8 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _myRole ??= currentUid == finderId ? 'finder' : 'seeker';
 
-    final String senderRole =
-        currentUid == finderId ? 'finder' : 'seeker';
+    final String senderRole = currentUid == finderId ? 'finder' : 'seeker';
 
     final chatRef = FirebaseFirestore.instance
         .collection('chats')
@@ -85,13 +80,40 @@ class _ChatScreenState extends State<ChatScreen> {
     final role = _myRole;
     if (role == null) return;
 
-    final fieldName =
-        role == 'finder' ? 'finderLastReadAt' : 'seekerLastReadAt';
+    final fieldName = role == 'finder'
+        ? 'finderLastReadAt'
+        : 'seekerLastReadAt';
 
     await FirebaseFirestore.instance
         .collection('chats')
         .doc(widget.chatId)
         .update({fieldName: FieldValue.serverTimestamp()});
+  }
+
+  String _getOtherPartyDisplayName({
+    required Map<String, dynamic> chatData,
+    required bool isFinder,
+    required String status,
+  }) {
+    // If status is not 'accepted', show "Anonymous User" to the seeker
+    // The finder can always see the seeker's email (they need it to review)
+    // The seeker cannot see the finder's email until accepted
+    if (status != 'accepted') {
+      if (isFinder) {
+        // Finder can see seeker's email to review the claim
+        return (chatData['seekerEmail'] ?? 'Seeker').toString();
+      } else {
+        // Seeker cannot see finder's email until accepted
+        return 'Anonymous User';
+      }
+    }
+
+    // After acceptance, show the actual email
+    if (isFinder) {
+      return (chatData['seekerEmail'] ?? 'Seeker').toString();
+    } else {
+      return (chatData['finderEmail'] ?? 'Finder').toString();
+    }
   }
 
   @override
@@ -122,6 +144,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final bool isFinder = currentUid == finderId;
         final bool canSendMessages = status == 'accepted';
 
+        // Get the other party's display name (Anonymous until accepted for seeker)
+        final String otherPartyDisplayName = _getOtherPartyDisplayName(
+          chatData: chatData,
+          isFinder: isFinder,
+          status: status,
+        );
+
         _messagesSub ??= FirebaseFirestore.instance
             .collection('chats')
             .doc(widget.chatId)
@@ -140,13 +169,28 @@ class _ChatScreenState extends State<ChatScreen> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.item['objectType'] ?? 'Chat about this item'),
+                Row(
+                  children: [
+                    if (status != 'accepted' && !isFinder)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child: Icon(Icons.visibility_off, size: 16),
+                      ),
+                    Expanded(
+                      child: Text(
+                        otherPartyDisplayName,
+                        style: const TextStyle(fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
                 Text(
                   status == 'pending'
-                      ? 'Waiting for finder approval'
+                      ? 'Waiting for ${isFinder ? "your" : "finder"} approval'
                       : status == 'rejected'
-                          ? 'Request rejected'
-                          : 'Anonymous chat',
+                      ? 'Request rejected'
+                      : widget.item['objectType'] ?? 'Chat',
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -158,8 +202,10 @@ class _ChatScreenState extends State<ChatScreen> {
               if (isFinder && status == 'pending')
                 Container(
                   color: Colors.yellow.shade100,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       const Expanded(
@@ -224,16 +270,19 @@ class _ChatScreenState extends State<ChatScreen> {
                     return ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
                         final data = docs[index].data();
-                        final senderRole =
-                            (data['senderRole'] ?? '').toString();
+                        final senderRole = (data['senderRole'] ?? '')
+                            .toString();
                         final text = (data['text'] ?? '').toString();
 
                         final bool isCurrentUser =
-                            (senderRole == 'finder' && currentUid == finderId) ||
+                            (senderRole == 'finder' &&
+                                currentUid == finderId) ||
                             (senderRole == 'seeker' && currentUid != finderId);
 
                         final Alignment alignment = isCurrentUser
@@ -244,24 +293,28 @@ class _ChatScreenState extends State<ChatScreen> {
                             ? Colors.teal
                             : Colors.grey.shade300;
 
-                        final Color textColor =
-                            isCurrentUser ? Colors.white : Colors.black87;
+                        final Color textColor = isCurrentUser
+                            ? Colors.white
+                            : Colors.black87;
 
                         return Align(
                           alignment: alignment,
                           child: Container(
                             margin: const EdgeInsets.symmetric(
-                                vertical: 4, horizontal: 4),
+                              vertical: 4,
+                              horizontal: 4,
+                            ),
                             padding: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 12),
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: bubbleColor,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               text,
-                              style:
-                                  TextStyle(color: textColor, fontSize: 15),
+                              style: TextStyle(color: textColor, fontSize: 15),
                             ),
                           ),
                         );
@@ -297,10 +350,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           hintText: status == 'accepted'
                               ? 'Type a message…'
                               : (status == 'rejected'
-                                  ? 'Finder rejected this request'
-                                  : 'You can chat after finder accepts'),
+                                    ? 'Finder rejected this request'
+                                    : 'You can chat after finder accepts'),
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
                           border: const OutlineInputBorder(),
                           isDense: true,
                         ),

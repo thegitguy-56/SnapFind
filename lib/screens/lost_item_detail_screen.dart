@@ -28,7 +28,9 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
 
   Future<String> _ensureChatAndSendVerification({
     required String finderId,
+    required String finderEmail,
     required String seekerId,
+    required String seekerEmail,
     required String itemId,
     required String verificationText,
   }) async {
@@ -49,7 +51,9 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
       chatRef = await chatsRef.add({
         'itemId': itemId,
         'finderId': finderId,
+        'finderEmail': finderEmail,
         'seekerId': seekerId,
+        'seekerEmail': seekerEmail,
         'createdAt': FieldValue.serverTimestamp(),
         'lastMessage': '',
         'lastMessageAt': FieldValue.serverTimestamp(),
@@ -92,7 +96,10 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
     }
 
     final String seekerId = user.uid;
+    final String seekerEmail = user.email ?? '';
     final String? finderId = _item['userId']?.toString();
+    final String finderEmail = (_item['reportedBy'] ?? _item['userEmail'] ?? '')
+        .toString();
     final String? itemId =
         _item['id']?.toString() ?? _item['docId']?.toString();
 
@@ -127,7 +134,9 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
         await alertsRef.add({
           'itemId': itemId,
           'finderId': finderId,
+          'finderEmail': finderEmail,
           'seekerId': seekerId,
+          'seekerEmail': seekerEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'status': 'pending',
         });
@@ -135,7 +144,9 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
 
       final chatId = await _ensureChatAndSendVerification(
         finderId: finderId,
+        finderEmail: finderEmail,
         seekerId: seekerId,
+        seekerEmail: seekerEmail,
         itemId: itemId,
         verificationText: verificationText,
       );
@@ -197,7 +208,10 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
     }
 
     final String seekerId = user.uid;
+    final String seekerEmail = user.email ?? '';
     final String? finderId = _item['userId']?.toString();
+    final String finderEmail = (_item['reportedBy'] ?? _item['userEmail'] ?? '')
+        .toString();
     final String? itemId =
         _item['id']?.toString() ?? _item['docId']?.toString();
 
@@ -225,7 +239,9 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
         final newChatRef = await chatsRef.add({
           'itemId': itemId,
           'finderId': finderId,
+          'finderEmail': finderEmail,
           'seekerId': seekerId,
+          'seekerEmail': seekerEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'lastMessage': '',
           'lastMessageAt': FieldValue.serverTimestamp(),
@@ -246,7 +262,6 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
           ),
         );
       }
-      // ignore: use_build_context_synchronously
     } catch (e) {
       ScaffoldMessenger.of(
         context,

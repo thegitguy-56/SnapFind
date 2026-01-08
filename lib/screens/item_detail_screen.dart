@@ -52,7 +52,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Future<String> _ensureChatAndSendVerification({
     required String finderId,
+    required String finderEmail,
     required String seekerId,
+    required String seekerEmail,
     required String itemId,
     required String verificationText,
   }) async {
@@ -73,7 +75,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       chatRef = await chatsRef.add({
         'itemId': itemId,
         'finderId': finderId,
+        'finderEmail': finderEmail,
         'seekerId': seekerId,
+        'seekerEmail': seekerEmail,
         'createdAt': FieldValue.serverTimestamp(),
         'lastMessage': '',
         'lastMessageAt': FieldValue.serverTimestamp(),
@@ -116,7 +120,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
 
     final String seekerId = user.uid;
+    final String seekerEmail = user.email ?? '';
     final String? finderId = _item['userId']?.toString();
+    final String finderEmail = (_item['userEmail'] ?? '').toString();
     final String? itemId =
         _item['id']?.toString() ?? _item['docId']?.toString();
 
@@ -231,7 +237,9 @@ ${marksController.text.trim()}
         await alertsRef.add({
           'itemId': itemId,
           'finderId': finderId,
+          'finderEmail': finderEmail,
           'seekerId': seekerId,
+          'seekerEmail': seekerEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'status': 'pending',
         });
@@ -239,7 +247,9 @@ ${marksController.text.trim()}
 
       final chatId = await _ensureChatAndSendVerification(
         finderId: finderId,
+        finderEmail: finderEmail,
         seekerId: seekerId,
+        seekerEmail: seekerEmail,
         itemId: itemId,
         verificationText: verificationText,
       );
@@ -301,7 +311,9 @@ ${marksController.text.trim()}
     }
 
     final String seekerId = user.uid;
+    final String seekerEmail = user.email ?? '';
     final String? finderId = _item['userId']?.toString();
+    final String finderEmail = (_item['userEmail'] ?? '').toString();
     final String? itemId =
         _item['id']?.toString() ?? _item['docId']?.toString();
 
@@ -329,7 +341,9 @@ ${marksController.text.trim()}
         final newChatRef = await chatsRef.add({
           'itemId': itemId,
           'finderId': finderId,
+          'finderEmail': finderEmail,
           'seekerId': seekerId,
+          'seekerEmail': seekerEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'lastMessage': '',
           'lastMessageAt': FieldValue.serverTimestamp(),
