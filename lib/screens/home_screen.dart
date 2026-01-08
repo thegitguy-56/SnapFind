@@ -181,16 +181,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    const DrawerHeader(
-                      decoration: BoxDecoration(color: Colors.blue),
-                      child: Text(
-                        'Menu',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
+                    // Show signed-in user's email and profile picture when available
+                    UserAccountsDrawerHeader(
+                      decoration: const BoxDecoration(color: Colors.blue),
+                      accountName: Text(
+                        FirebaseAuth.instance.currentUser?.displayName ??
+                            'Menu',
+                        textAlign: TextAlign.start,
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 42,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      accountEmail: Text(
+                        FirebaseAuth.instance.currentUser?.email ?? '',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      currentAccountPicture: CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child:
+                            FirebaseAuth.instance.currentUser?.photoURL != null
+                            ? CircleAvatar(
+                                radius: 22,
+                                backgroundImage: CachedNetworkImageProvider(
+                                  FirebaseAuth.instance.currentUser!.photoURL!,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person,
+                                size: 32,
+                                color: Colors.grey,
+                              ),
                       ),
                     ),
                     ListTile(

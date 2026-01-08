@@ -26,7 +26,6 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
     _item = Map<String, dynamic>.from(widget.item);
   }
 
-
   Future<String> _ensureChatAndSendVerification({
     required String finderId,
     required String seekerId,
@@ -111,89 +110,10 @@ class _LostItemDetailScreenState extends State<LostItemDetailScreen> {
       return;
     }
 
-    final whereController = TextEditingController();
-    final whenController = TextEditingController();
-    final marksController = TextEditingController();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Help verify that it is yours'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: whereController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Where exactly did you find it?',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: whenController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Approximate time you found it?',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: marksController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText:
-                        'Any unique marks or details? (Dents, scratches, etc.)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (whereController.text.trim().isEmpty ||
-                    whenController.text.trim().isEmpty ||
-                    marksController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please fill all three answers.'),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Send'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != true) {
-      return;
-    }
-
-    final verificationText = '''
-Where exactly did you find it?
-${whereController.text.trim()}
-
-Approximate time you found it?
-${whenController.text.trim()}
-
-Unique marks or details:
-${marksController.text.trim()}
-''';
+    final location = (_item['lastKnownLocation'] ?? '').toString();
+    final verificationText = location.isNotEmpty
+        ? 'I found this near $location'
+        : 'I found this item';
 
     try {
       final alertsRef = FirebaseFirestore.instance.collection('alerts');
@@ -222,7 +142,6 @@ ${marksController.text.trim()}
 
       if (!mounted) return;
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Details sent to owner. Wait for approval to chat.'),
@@ -230,7 +149,6 @@ ${marksController.text.trim()}
       );
 
       Navigator.push(
-        // ignore: use_build_context_synchronously
         context,
         MaterialPageRoute(
           builder: (_) => ChatScreen(chatId: chatId, item: _item),
@@ -328,7 +246,7 @@ ${marksController.text.trim()}
           ),
         );
       }
-        // ignore: use_build_context_synchronously
+      // ignore: use_build_context_synchronously
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -338,16 +256,13 @@ ${marksController.text.trim()}
 
   @override
   Widget build(BuildContext context) {
-    // Lost items: single imageUrl, notes, lastKnownLocation, itemName, category, reportedBy
+    // Lost items: single imageUrl, notes, lastKnownLocation, itemName, category.
     final String? imageUrl = _item['imageUrl'] as String?;
     final String title = (_item['itemName'] ?? 'Item').toString();
     final String category = (_item['category'] ?? '').toString();
     final String location = (_item['lastKnownLocation'] ?? '').toString();
     final String note = (_item['notes'] ?? '').toString();
-    final String postedBy =
-        (_item['reportedBy'] ?? _item['userEmail'] ?? '').toString();
     final String status = (_item['status'] as String?) ?? 'lost';
-
     final bool isReturned = status == 'returned';
     final double bottomInset = MediaQuery.of(context).padding.bottom;
 
@@ -501,14 +416,6 @@ ${marksController.text.trim()}
                             color: Colors.blueGrey,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Reported by: $postedBy',
-                          style: const TextStyle(
-                            color: Colors.blueGrey,
-                            fontSize: 14,
-                          ),
-                        ),
                         const SizedBox(height: 24),
                         if (isReturned)
                           const Text(
@@ -534,16 +441,18 @@ ${marksController.text.trim()}
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isReturned ? Colors.grey : Colors.orangeAccent,
+                      backgroundColor: isReturned
+                          ? Colors.grey
+                          : Colors.orangeAccent,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed:
-                        isReturned ? null : () => _showVerificationDialog(context),
+                    onPressed: isReturned
+                        ? null
+                        : () => _showVerificationDialog(context),
                     child: const Text(
                       'I found this',
                       textAlign: TextAlign.center,
@@ -568,16 +477,18 @@ ${marksController.text.trim()}
                             : "Chat with owner",
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                disabled ? Colors.grey : Colors.teal,
+                            backgroundColor: disabled
+                                ? Colors.grey
+                                : Colors.teal,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed:
-                              disabled ? null : () => _onChatPressed(context),
+                          onPressed: disabled
+                              ? null
+                              : () => _onChatPressed(context),
                           child: const Text(
                             'Chat with owner',
                             textAlign: TextAlign.center,
