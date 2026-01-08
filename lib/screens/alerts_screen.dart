@@ -117,9 +117,9 @@ class AlertsScreen extends StatelessWidget {
                                 ? 'Alert for: $itemTitle'
                                 : 'Alert for item: $itemId',
                           ),
-                          subtitle: Text(
-                            'From: $seekerEmail',
-                            style: const TextStyle(fontSize: 12),
+                          subtitle: const Text(
+                            'From: Anonymous User',
+                            style: TextStyle(fontSize: 12),
                           ),
                           trailing: thumbUrl != null
                               ? ClipRRect(

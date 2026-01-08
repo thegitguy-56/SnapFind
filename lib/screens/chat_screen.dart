@@ -95,25 +95,10 @@ class _ChatScreenState extends State<ChatScreen> {
     required bool isFinder,
     required String status,
   }) {
-    // If status is not 'accepted', show "Anonymous User" to the seeker
-    // The finder can always see the seeker's email (they need it to review)
-    // The seeker cannot see the finder's email until accepted
-    if (status != 'accepted') {
-      if (isFinder) {
-        // Finder can see seeker's email to review the claim
-        return (chatData['seekerEmail'] ?? 'Seeker').toString();
-      } else {
-        // Seeker cannot see finder's email until accepted
-        return 'Anonymous User';
-      }
-    }
-
-    // After acceptance, show the actual email
-    if (isFinder) {
-      return (chatData['seekerEmail'] ?? 'Seeker').toString();
-    } else {
-      return (chatData['finderEmail'] ?? 'Finder').toString();
-    }
+    // Show role instead of email for privacy
+    // If current user is finder, the other party is the potential "Owner"
+    // If current user is seeker (potential owner), the other party is the "Finder"
+    return isFinder ? 'Owner' : 'Finder';
   }
 
   @override
