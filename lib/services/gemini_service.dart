@@ -1,28 +1,30 @@
+import 'dart:convert'; // Import for jsonDecode
 import 'dart:io';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config/secrets.dart';
 
 class GeminiService {
-  
-
-  static Future<Map<String, dynamic>> analyzeImages(List<File> imageFiles) async {
+  static Future<Map<String, dynamic>> analyzeImages(
+    List<File> imageFiles,
+  ) async {
     final model = GenerativeModel(
       model: 'gemini-2.5-flash',
       apiKey: Secrets.geminiApiKey,
     );
 
-    // Build parts: prompt + all images
     final parts = <Part>[];
 
+    // UPDATED PROMPT
     const prompt = '''
-Analyze these photos of the same found item (front, back, other angles).
-Use ALL images together and respond ONLY with valid JSON:
+Analyze these photos of the same found item. 
+1. Identify the MAIN object. If the object is inside a case or cover (like a phone in a case), identify the object itself (e.g., "smartphone"), not the accessory.
+2. Return ONLY a raw JSON object string without markdown code blocks (```json).
+3. Follow this exact structure:
 {
-  "object_type": "water bottle",
-  "color": "blue",
-  "brand": "Milton"
+  "object_type": "Generic name of the item (e.g. smartphone, water bottle, keys)",
+  "color": "Dominant color of the item",
+  "brand": "Brand name if clearly visible, otherwise empty string"
 }
-If you are not sure about a field, return an empty string for that field.
 ''';
 
     parts.add(TextPart(prompt));
@@ -32,23 +34,29 @@ If you are not sure about a field, return an empty string for that field.
       parts.add(DataPart('image/jpeg', bytes));
     }
 
-    final response = await model.generateContent([
-      Content.multi(parts),
-    ]);
+    final response = await model.generateContent([Content.multi(parts)]);
 
     final text = response.text ?? '{}';
     print('Gemini raw response: $text');
 
-    String extract(String key) {
-      final reg = RegExp('"$key"\\s*:\\s*"([^"]*)"');
-      final match = reg.firstMatch(text);
-      return match?.group(1) ?? '';
-    }
+    // Robust Parsing using jsonDecode
+    // This handles spacing, newlines, and escaping better than regex
+    try {
+      // Clean up markdown if the model ignores the "no markdown" rule
+      final cleanText = text
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+      final Map<String, dynamic> jsonResponse = jsonDecode(cleanText);
 
-    return {
-      'object_type': extract('object_type'),
-      'color': extract('color'),
-      'brand': extract('brand'),
-    };
+      return {
+        'object_type': jsonResponse['object_type']?.toString() ?? '',
+        'color': jsonResponse['color']?.toString() ?? '',
+        'brand': jsonResponse['brand']?.toString() ?? '',
+      };
+    } catch (e) {
+      print('Error parsing Gemini response: $e');
+      return {'object_type': '', 'color': '', 'brand': ''};
+    }
   }
 }
