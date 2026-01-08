@@ -46,8 +46,9 @@ class ReturnedItemsScreen extends StatelessWidget {
 
           // Filter to only returned items
           items = items.where((item) {
-            final statusStr =
-                (item['status']?.toString() ?? '').trim().toLowerCase();
+            final statusStr = (item['status']?.toString() ?? '')
+                .trim()
+                .toLowerCase();
             return statusStr == 'returned';
           }).toList();
 
@@ -124,9 +125,7 @@ class ReturnedItemsScreen extends StatelessWidget {
                                   fit: StackFit.expand,
                                   children: [
                                     // Light grey placeholder behind
-                                    Container(
-                                      color: Colors.grey.shade200,
-                                    ),
+                                    Container(color: Colors.grey.shade200),
                                     // Network image with loading indicator
                                     Image.network(
                                       url,
@@ -139,10 +138,12 @@ class ReturnedItemsScreen extends StatelessWidget {
                                             height: 32,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              value: progress.expectedTotalBytes !=
+                                              value:
+                                                  progress.expectedTotalBytes !=
                                                       null
                                                   ? progress.cumulativeBytesLoaded /
-                                                      progress.expectedTotalBytes!
+                                                        progress
+                                                            .expectedTotalBytes!
                                                   : null,
                                             ),
                                           ),
@@ -321,14 +322,6 @@ class ReturnedItemsScreen extends StatelessWidget {
                             ],
 
                             const SizedBox(height: 8),
-                            Text(
-                              'Posted by: ${item['userEmail'] ?? item['reportedBy'] ?? ''}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ],
                         ),
                       ),

@@ -207,7 +207,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       return;
     }
 
-    final verificationText = '''
+    final verificationText =
+        '''
 Where exactly did you lose it?
 ${whereController.text.trim()}
 
@@ -464,8 +465,7 @@ ${marksController.text.trim()}
                                 text: 'Color: ',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              TextSpan(
-                                  text: (_item['color'] ?? '').toString()),
+                              TextSpan(text: (_item['color'] ?? '').toString()),
                             ],
                           ),
                         ),
@@ -481,8 +481,7 @@ ${marksController.text.trim()}
                                 text: 'Brand: ',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              TextSpan(
-                                  text: (_item['brand'] ?? '').toString()),
+                              TextSpan(text: (_item['brand'] ?? '').toString()),
                             ],
                           ),
                         ),
@@ -531,14 +530,6 @@ ${marksController.text.trim()}
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Posted by: ${_item['userEmail'] ?? ''}',
-                          style: const TextStyle(
-                            color: Colors.blueGrey,
-                            fontSize: 14,
-                          ),
-                        ),
                         const SizedBox(height: 24),
                         if (isReturned)
                           const Text(
@@ -558,27 +549,24 @@ ${marksController.text.trim()}
           ),
           Container(
             color: Colors.white,
-            padding: EdgeInsets.fromLTRB(
-              12,
-              16,
-              12,
-              24 + bottomInset,
-            ),
+            padding: EdgeInsets.fromLTRB(12, 16, 12, 24 + bottomInset),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isReturned ? Colors.grey : Colors.orangeAccent,
+                      backgroundColor: isReturned
+                          ? Colors.grey
+                          : Colors.orangeAccent,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed:
-                        isReturned ? null : () => _showVerificationDialog(context),
+                    onPressed: isReturned
+                        ? null
+                        : () => _showVerificationDialog(context),
                     child: const Text(
                       "I'm looking for this",
                       textAlign: TextAlign.center,
@@ -603,16 +591,18 @@ ${marksController.text.trim()}
                             : "Chat with finder",
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                disabled ? Colors.grey : Colors.teal,
+                            backgroundColor: disabled
+                                ? Colors.grey
+                                : Colors.teal,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed:
-                              disabled ? null : () => _onChatPressed(context),
+                          onPressed: disabled
+                              ? null
+                              : () => _onChatPressed(context),
                           child: const Text(
                             "Chat with finder",
                             textAlign: TextAlign.center,

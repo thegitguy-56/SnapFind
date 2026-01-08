@@ -708,16 +708,6 @@ class _FeedScreenState extends State<FeedScreen> {
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Posted by: ${item['userEmail'] ?? item['reportedBy'] ?? ''}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
                                       if (isFinder && status == 'found')
                                         OutlinedButton.icon(
                                           style: OutlinedButton.styleFrom(
