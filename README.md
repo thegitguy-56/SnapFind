@@ -6,13 +6,13 @@ It helps users quickly post, search, and recover lost items through photos, smar
 
 ---
 
-## ❓ Problem
+## Problem
 Lost & found details are scattered across WhatsApp groups and notice boards.  
 They are unstructured, hard to search, and easy to miss.
 
 ---
 
-## 💡 Solution
+## Solution
 SnapFind provides a single, visual platform where:
 - Found items can be posted using photos and AI tagging  
 - Lost items can be reported even without photos  
@@ -20,7 +20,7 @@ SnapFind provides a single, visual platform where:
 
 ---
 
-## ✨ Features
+## Features
 - Visual-first lost & found system  
 - AI-assisted tagging for found items  
 - Manual reporting for lost items  
@@ -32,7 +32,7 @@ SnapFind provides a single, visual platform where:
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - Flutter (Dart)  
 - Firebase Authentication  
 - Cloud Firestore  
@@ -41,7 +41,7 @@ SnapFind provides a single, visual platform where:
 
 ---
 
-## 🚀 Recent Improvements
+## Recent Improvements
 - Faster image loading with caching  
 - Dedicated lost item reporting flow  
 - Role-based item detail screens  
@@ -51,13 +51,10 @@ SnapFind provides a single, visual platform where:
 
 ---
 
-## 🔮 Future Scope
+## Future Scope
 - Image-based search  
 - Map view for nearby items  
 - Push notifications  
 - Stronger ownership verification  
 
 ---
-
-## 👨‍💻 Project
-Hackathon Project – SnapFind Team
